@@ -57,14 +57,20 @@ savefig("vlasov_poisson_z₀.png")
 
 
 # create animation
+ind = z[2,:,1] .>= 0.0 
+# ind2 = setdiff(z[2,:,1], z[2,ind,1])
+ind2 = [findfirst(isequal(x), z[2,:,1]) for x in setdiff(z[2,:,1],z[2,ind,1])]
 anim = @animate for n in axes(z,3)
-    scatter(mod.(z[1,:,n], 1), z[2,:,n],
+    scatter(mod.(z[1,ind,n], 1), z[2,ind,n],
         marker = 3,
         xlim = xlim,
         ylim = vlim,
         title = "Vlasov-Poisson",
         legend = false,
         size = (800, 600)
+    )
+    scatter!(
+        mod.(z[1,ind2,n], 1), z[2,ind2,n]
     )
 end
 
