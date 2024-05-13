@@ -24,6 +24,7 @@ import GeometricEquations
 import GeometricEquations: ntime
 import GeometricIntegrators
 import DifferentialEquations
+import NaNMath
 
 
 # abstract types
@@ -35,10 +36,15 @@ include("models/model.jl")
 include("examples/example.jl")
 include("sampling/sampling.jl")
 include("entropies/entropy.jl")
-include("distributions/2d_spline.jl")
+include("splines/nd_spline.jl")
 
 
 export initialize!
+
+
+# splines
+# include("splines/2d_spline.jl")
+include("splines/2d_spline_new.jl")
 export TwoDSpline
 export evaluate, evaluate_first_derivative
 
@@ -90,6 +96,8 @@ include("models/vlasov_poisson.jl")
 export VlasovPoisson
 export LenardBernstein
 export ConservativeLenardBernstein
+export Landau
+export compute_matrices, compute_U, Landau_rhs!, stuff, compute_L
 
 # Example Problems
 
