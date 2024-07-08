@@ -29,9 +29,11 @@ CacheType(AT, ::SplineDistribution{XD, VD, TwoDSpline{DT, BT, BT2}, DT, BT, MT, 
 CacheType(AT, ::SplineDistribution{XD, VD, Spline{DT, BT, Vector{DT}}, DT, BT, MT, FT}) where {XD, VD, ST, DT, BT, MT, FT} = SplineDistribution{XD, VD, Spline{AT, BT, Vector{AT}}, AT, BT, MT, FT}
 
 
-function SplineDistribution(xdim, vdim, nknots::KT, s_order::OT, domain::Tuple, bc::Symbol=:Dirichlet) where {KT, OT}
+function SplineDistribution(xdim, vdim, nknots::KT, s_order::OT, domain::Tuple, length_big_cell, bc::Symbol=:Dirichlet) where {KT, OT}
     knots = collect(LinRange(domain..., nknots))
-    b = BSplineBasis(BSplineOrder(s_order), knots)
+    extended_knots = [domain[1] - length_big_cell, knots..., domain[2] + length_big_cell]
+
+    b = BSplineBasis(BSplineOrder(s_order), extended_knots)
 
     if bc == :Dirichlet
         basis = RecombinedBSplineBasis(Derivative(0), b)

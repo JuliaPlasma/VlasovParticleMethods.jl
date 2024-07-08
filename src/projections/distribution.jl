@@ -97,6 +97,29 @@ end
 #     return final_dist.spline
 # end
 
+function project_Maxwellian(sdist::SplineDistribution{1,2})
+    B = sdist.basis
+    M = length(B)
+    rhs = zeros(M^2)
+    d_start = BSplineKit.knots(sdist.basis)[1]
+    d_end = BSplineKit.knots(sdist.basis)[end]
+    domain = ([d_start, d_start], [d_end, d_end])
+
+
+    for k in eachindex(rhs)
+        i, j = ij_from_k(k, M)
+        int(v, p) = B[i](v[1]) * B[j](v[2]) * f_Maxwellian(v)
+        prob = IntegralProblem(int, domain)
+        sol = Integrals.solve(prob, HCubatureJL(); abstol = 1e-10, reltol = 1e-14)
+        # b_j[i], err = quadgk(x -> sdist.basis[i](x)*f_m(x), -10., 10., atol=1e-14, rtol=1e-14)
+        rhs[k] = sol.u
+    end
+
+    ldiv!(sdist.coefficients, sdist.mass_fact, rhs)
+
+    return sdist.spline
+end
+
 
 function projection(velocities::AbstractMatrix{VT}, dist::ParticleDistribution{1,2}, final_dist::SplineDistribution{1,2}) where {VT}
     rhs = zeros(VT, size(final_dist))
