@@ -2,7 +2,6 @@ using OffsetArrays
 using PoissonSolvers
 using Test
 using VlasovMethods
-using VlasovMethods.BumpOnTail
 
 
 nd = 1

@@ -94,19 +94,18 @@ export Picard_iterate_over_particles
 
 # Vlasov models
 
+include("models/vlasov_model.jl")
+
 include("models/collision_operator.jl")
 include("models/landau.jl")
 include("models/lenard_bernstein.jl")
 include("models/lenard_bernstein_conservative.jl")
-
-include("models/vlasov_model.jl")
 include("models/vlasov_poisson.jl")
 
 export VlasovPoisson
 export LenardBernstein
 export ConservativeLenardBernstein
 export Landau
-export compute_matrices, compute_U, Landau_rhs!, stuff, compute_L
 
 # Example Problems
 
