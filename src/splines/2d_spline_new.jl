@@ -28,7 +28,8 @@ order(S::TwoDSpline) = order(typeof(S))
 
 # (S::TwoDSpline)(x, y) = (S::TwoDSpline)([x, y])
 (S::TwoDSpline)(x) = evaluate(S, x)
-(S::TwoDSpline)(x, y) = evaluate(S, x, y)
+(S::TwoDSpline)(x, y) = evaluate(S, [x, y])
+# (S::TwoDSpline)(x, y) = evaluate(S, x, y)
 
 function evaluate(S::TwoDSpline, x::AbstractVector)
     B = basis(S)
@@ -41,36 +42,42 @@ function evaluate(S::TwoDSpline, x::AbstractVector)
 
     for (δi, bi) ∈ pairs(bs1)
         for (δi2, b2) ∈ pairs(bs2)
-            i = ilast1 + 1 - δi
-            j = ilast2 + 1 - δi2
-            if i > 0 && i <= M && j > 0 && j <= M
+            if typeof(B) <: PeriodicBSplineBasis
+                i = mod1(ilast1 + 1 - δi, M)
+                j = mod1(ilast2 + 1 - δi2, M)
                 result += S.coefficients[(j - 1)* M + i] * bi * b2
+            else
+                i = ilast1 + 1 - δi, M
+                j = ilast2 + 1 - δi2
+                if i > 0 && i <= M && j > 0 && j <= M 
+                    result += S.coefficients[(j - 1)* M + i] * bi * b2
+                end
             end
         end
     end
     return result
 end
 
-function evaluate(S::TwoDSpline, x1::T, x2::T) where {T}
-    B = basis(S)
-    M = length(B)
-    k = order(S)
-    result = zero(eltype(S.coefficients))
+# function evaluate(S::TwoDSpline, x1::T, x2::T) where {T}
+#     B = basis(S)
+#     M = length(B)
+#     k = order(S)
+#     result = zero(eltype(S.coefficients))
     
-    ilast1, bs1 = evaluate_all(B, x1)
-    ilast2, bs2 = evaluate_all(B, x2)
+#     ilast1, bs1 = evaluate_all(B, x1)
+#     ilast2, bs2 = evaluate_all(B, x2)
 
-    for (δi, bi) ∈ pairs(bs1)
-        for (δi2, b2) ∈ pairs(bs2)
-            i = ilast1 + 1 - δi
-            j = ilast2 + 1 - δi2
-            if i > 0 && i <= M && j > 0 && j <= M
-                result += S.coefficients[(j - 1)* M + i] * bi * b2
-            end
-        end
-    end
-    return result
-end
+#     for (δi, bi) ∈ pairs(bs1)
+#         for (δi2, b2) ∈ pairs(bs2)
+#             i = ilast1 + 1 - δi
+#             j = ilast2 + 1 - δi2
+#             if i > 0 && i <= M && j > 0 && j <= M
+#                 result += S.coefficients[(j - 1)* M + i] * bi * b2
+#             end
+#         end
+#     end
+#     return result
+# end
 
 function eval_2d_basis_func(B::AbstractBSplineBasis, x::AbstractVector, index::Int)
     i,j = ij_from_k(index, length(B))
@@ -114,7 +121,7 @@ function eval_bfd(B::AbstractBSplineBasis, k, v1::T, v2::T) where T
 end
 
 
-function eval_bfd!(derivative::AbstractVector{T}, B::AbstractBSplineBasis, k, v::Vector{T}, α, β) where T
+function eval_bfd!(derivative::AbstractVector{T}, B::AbstractBSplineBasis, k, v, α, β) where T
     # M = length(B)
     i,j = ij_from_k(k, length(B))
 
@@ -236,3 +243,121 @@ function evaluate_der_2d_indices(B::AbstractBSplineBasis, v1::T, v2::T) where T
 
     return index_list
 end
+
+
+
+function compute_shift_scale(i, knots)
+    # @show 0.5 * (knots[i] + knots[i+1])
+    # @show 0.5 * (knots[i + 1] - knots[i])
+    return 0.5 * (knots[i] + knots[i+1]), 0.5 * (knots[i + 1] - knots[i])
+end
+
+function compute_lin_transform(x::T, shift::T, scale::T) where T
+    return x .* scale + shift
+end
+
+function gauss_quad(f::Function, basis::AbstractBSplineBasis, n::Int, params)
+    T = eltype(params.sdist)
+    k = BSplineKit.order(basis)
+    # knots = BSplineKit.knots(basis)[k:end-k+1]
+    knots = BSplineKit.knots(basis)[3:end-1]
+    M = length(knots) - 1
+    x, w = gausslegendre(n)
+
+    res = zero(T)
+
+    for i in 1:M, j in 1:M, l in 1:M, m in 1:M
+        shift_i, scale_i = compute_shift_scale(i, knots)
+        shift_j, scale_j = compute_shift_scale(j, knots)
+        shift_l, scale_l = compute_shift_scale(l, knots)
+        shift_m, scale_m = compute_shift_scale(m, knots)
+
+        for i1 in 1:n, j1 in 1:n, l1 in 1:n, m1 in 1:n
+            v1 = compute_lin_transform([x[i1], x[j1]], [shift_i, shift_j], [scale_i, scale_j])
+            v2 = compute_lin_transform([x[l1], x[m1]], [shift_l, shift_m], [scale_l, scale_m])
+            v1 = T.(v1)
+            v2 = T.(v2)
+            res = res + f(v1, v2, params) * w[i1] * w[j1] * w[l1] * w[m1] * scale_i * scale_j * scale_l * scale_m
+        end
+    end
+
+    return res
+end
+
+function gauss_quad(f::Function, basis::AbstractBSplineBasis, iknots::AbstractRange, jknots::AbstractRange, n::Int, params)
+    T = eltype(params.sdist)
+    # M = length(basis) + 1
+    k = BSplineKit.order(basis)
+    knots = BSplineKit.knots(basis)
+    M = length(knots) - 1
+    x, w = gausslegendre(n)
+
+    res = zero(T)
+
+    for i in iknots[1:end-1], j in jknots[1:end-1], l in iknots[1:end-1], m in jknots[1:end-1]
+        shift_i, scale_i = compute_shift_scale(i, knots)
+        shift_j, scale_j = compute_shift_scale(j, knots)
+        shift_l, scale_l = compute_shift_scale(l, knots)
+        shift_m, scale_m = compute_shift_scale(m, knots)
+
+        for i1 in 1:n, j1 in 1:n, l1 in 1:n, m1 in 1:n
+            v1 = compute_lin_transform([x[i1], x[j1]], [shift_i, shift_j], [scale_i, scale_j])
+            v2 = compute_lin_transform([x[l1], x[m1]], [shift_l, shift_m], [scale_l, scale_m])
+            v1 = T.(v1)
+            v2 = T.(v2)
+            res = res + f(v1, v2, params) * w[i1] * w[j1] * w[l1] * w[m1] * scale_i * scale_j * scale_l * scale_m
+        end
+    end
+
+    return res
+end
+
+function gauss_quad_2d(f::Function, basis::AbstractBSplineBasis, n::Int, params)
+    T = eltype(params.sdist)
+    # M = length(basis) + 1
+    k = BSplineKit.order(basis)
+    # knots = BSplineKit.knots(basis)[k:end-k+1]
+    knots = BSplineKit.knots(basis)[3:end-1]
+    M = length(knots) - 1
+    x, w = gausslegendre(n)
+
+    res = zero(T)
+
+    for i in 1:M, j in 1:M
+        shift_i, scale_i = compute_shift_scale(i, knots)
+        shift_j, scale_j = compute_shift_scale(j, knots)
+
+        for i1 in 1:n, j1 in 1:n
+            v1 = compute_lin_transform([x[i1], x[j1]], [shift_i, shift_j], [scale_i, scale_j])
+            v1 = T.(v1)
+            res = res + f(v1, params) * w[i1] * w[j1] * scale_i * scale_j 
+        end
+    end
+
+    return res
+end
+
+
+function gauss_quad_1d(f::Function, basis::AbstractBSplineBasis, n::Int, params)
+    T = eltype(params.sdist)
+    # M = length(basis) + 1
+    k = BSplineKit.order(basis)
+    knots = BSplineKit.knots(basis)[1:end]
+    M = length(knots) - 1
+    # knots = BSplineKit.knots(basis)[k:end-k+1]
+    x, w = gausslegendre(n)
+
+    res = zero(T)
+
+    for i in 1:M
+        shift_i, scale_i = compute_shift_scale(i, knots)
+        for i1 in 1:n
+            v1 = compute_lin_transform(x[i1], shift_i, scale_i)
+            v1 = T.(v1)
+            res = res + f(v1, params) * w[i1] * scale_i
+        end
+    end
+
+    return res
+end
+

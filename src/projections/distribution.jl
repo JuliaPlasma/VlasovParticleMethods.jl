@@ -124,6 +124,9 @@ end
 function projection(velocities::AbstractMatrix{VT}, dist::ParticleDistribution{1,2}, final_dist::SplineDistribution{1,2}) where {VT}
     rhs = zeros(VT, size(final_dist))
     M = length(final_dist.basis)
+    d_start = BSplineKit.knots(final_dist.basis)[1]
+    d_end = BSplineKit.knots(final_dist.basis)[end]
+    # nknots = length(BSplineKit.knots(final_dist.basis))
 
     # projection of delta functions to splines of @jipolanco 
     # https://github.com/jipolanco/BSplineKit.jl/issues/48
@@ -139,8 +142,10 @@ function projection(velocities::AbstractMatrix{VT}, dist::ParticleDistribution{1
                 j = ilast2 + 1 - δi2
                 if i > 0 && i <= M && j > 0 && j <= M
                     rhs[(j-1)*M + i] += bi * b2 * dist.particles.w[1,p]
-                # elseif ilast1 <= 0 || ilast1 > size(final_dist)[1] || ilast2 <= 0 || ilast2 > size(final_dist)[2]
-                #     println("WARNING: particle outside domain")
+                # elseif ilast1 <= 0 || ilast1 > M || ilast2 <= 0 || ilast2 > M
+                elseif velocities[1,p] < d_start ||  velocities[2,p] < d_start || velocities[1,p] > d_end || velocities[2,p] > d_end 
+                    println("WARNING: particle outside domain")
+                    @show velocities[:,p]
                 end
             end
         end
