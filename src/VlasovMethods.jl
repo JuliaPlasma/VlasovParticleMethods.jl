@@ -24,8 +24,9 @@ using NLsolve
 # using SimpleNonlinearSolve
 using NonlinearSolve
 using Integrals
-using MCIntegration
-using Cubature
+using LinearSolve
+using Trapz
+using FastGaussQuadrature
 import GeometricEquations
 import GeometricEquations: ntime
 import GeometricIntegrators.Integrators
