@@ -9,13 +9,13 @@ struct Landau{XD, VD, DT <: DistributionFunction{XD,VD}, ET <: Entropy, T} <: Vl
 end
 
 function integrand_J(v::AbstractArray{T}, B, i, j, sdist) where T
-    return (B[i, T](v[1]) * B[j, T](v[2]) * (1. + log(sdist.spline(v))))::T
+    return T(B[i, T](v[1]) * B[j, T](v[2]) * (one(T) + log(sdist.spline(v))))
 end
 
 function integrand_J(v::AbstractArray{T}, params) where T
     # if params.sdist.spline(v) > eps(T)
         # return (params.B[params.i, T](v[1]) * params.B[params.j, T](v[2]) * (1. + log(f_Maxwellian(v))))::T
-    return (params.B[params.i, T](v[1]) * params.B[params.j, T](v[2]) * (1. + log(params.sdist.spline(v))))::T
+    return T(params.B[params.i, T](v[1]) * params.B[params.j, T](v[2]) * (one(T) + log(params.sdist.spline(v))))
     # else
     #     return zero(T)
     # end
@@ -85,18 +85,19 @@ function Landau_rhs(v, params)
     ind1, res1 = evaluate_der_2d(params.B, v)
 
     for α in axes(params.v_array, 2)
-        U = compute_U(v, params.v_array[:,α])
-        ind_α, res_α = evaluate_der_2d(params.B, params.v_array[:, α])
+        vα = @view params.v_array[:,α]
+        U = compute_U(v, vα)
+        ind_α, res_α = evaluate_der_2d(params.B, vα)
 
         for (i, k) in pairs(ind1)
             if k > 0 && k ≤ K
-                v̇ .+=  params.dist.particles.w[1,α] * params.L[k] * U * res1[:, i]
+                v̇ .+= params.dist.particles.w[1,α] * params.L[k] * U * res1[:, i]
             end
         end
 
         for (i2, k2) in pairs(ind_α)
             if k2 > 0 && k2 ≤ K
-                v̇ .-=  params.dist.particles.w[1,α] * params.L[k2] * U * res_α[:, i2]
+                v̇ .-= params.dist.particles.w[1,α] * params.L[k2] * U * res_α[:, i2]
             end
         end
     end
@@ -105,7 +106,7 @@ function Landau_rhs(v, params)
 end
 
 
-function compute_K_plus(v_array::AbstractArray{T}, dist, sdist) where {T}
+function compute_K(v_array::AbstractArray{T}, dist, sdist) where {T}
     M = size(sdist)
     K1 = zeros(T, (M, size(v_array,2)))
     K2 = zeros(T, (M, size(v_array,2)))
@@ -114,13 +115,19 @@ function compute_K_plus(v_array::AbstractArray{T}, dist, sdist) where {T}
         klist, der_array = evaluate_der_2d(sdist.basis, v_array[:,α])
         for (i, k) in pairs(klist)
             if k > 0 && k <= M
-                K1[k, α] = dist.particles.w[1,α] * der_array[1,i]
-                K2[k, α] = dist.particles.w[1,α] * der_array[2,i]
+                K1[k,α] = dist.particles.w[1,α] * der_array[1,i]
+                K2[k,α] = dist.particles.w[1,α] * der_array[2,i]
             end
         end
     end
 
-    if rank(K1) < M  || rank(K2) < M
+    return K1, K2
+end
+
+function compute_K_plus(v_array::AbstractArray{T}, dist, sdist) where {T}
+    K1, K2 = compute_K(v_array, dist, sdist)
+
+    if rank(K1) < size(sdist) || rank(K2) < size(sdist)
         println("K1 or K2 not full rank")
         @show size(K1,1) - rank(K1)
         @show size(K2,1) - rank(K2)
@@ -130,7 +137,7 @@ function compute_K_plus(v_array::AbstractArray{T}, dist, sdist) where {T}
 end
 
 function f_Maxwellian(v)
-    return 1/(2π) * exp(- 0.5 * norm(v)^2)
+    return 1/(2π) * exp(- dot(v,v) / 2 )
 end
 
 
@@ -199,7 +206,6 @@ end
 
 
 function L_integrand_gh(v1::AbstractVector{T}, v2::AbstractVector{T}, params) where T
-    
     id_list_1 = evaluate_der_2d_indices(params.sdist.basis, v1)
     id_list_2 = evaluate_der_2d_indices(params.sdist.basis, v2)
     
@@ -215,8 +221,7 @@ function L_integrand_gh(v1::AbstractVector{T}, v2::AbstractVector{T}, params) wh
         eval_bfd!(basis_derivative, params.sdist.basis, params.k[2], v1, 0, 1)
         eval_bfd!(basis_derivative, params.sdist.basis, params.k[2], v2, 1, -1)
 
-        return (integrand * params.sdist.spline(v2) * basis_derivative)::T
-
+        return T(integrand * params.sdist.spline(v2) * basis_derivative)
     else
         return zero(T)
     end
@@ -241,7 +246,6 @@ function compute_L_ij_gh(sdist::SplineDistribution{1,2}, n::Int)
             L[k] = gauss_quad(L_integrand_gh, sdist.basis, n, params)
             # L[k] = gauss_quad(L_integrand_gh, sdist.basis, iknots, jknots, n, params)
         end
-
     end
 
     for k in CartesianIndices(L)
@@ -250,9 +254,10 @@ function compute_L_ij_gh(sdist::SplineDistribution{1,2}, n::Int)
         end
     end
 
-    return L .* 0.5
-end
+    L ./= 2
 
+    return L
+end
 
 
 # spline-to-spline? version 
@@ -266,7 +271,14 @@ function Landau_rhs_2!(v̇, v::AbstractArray{ST}, params) where {ST}
 
     # compute K matrices 
     # println("compute K")
-    K1_plus, K2_plus = compute_K_plus(v, params.dist, sdist)
+    # K1_plus, K2_plus = compute_K_plus(v, params.dist, sdist)
+    K1, K2 = compute_K(v, params.dist, sdist)
+
+    if rank(K1) < size(sdist) || rank(K2) < size(sdist)
+        println("K1 or K2 not full rank")
+        @show size(K1,1) - rank(K1)
+        @show size(K2,1) - rank(K2)
+    end
 
     # compute L_ij matrix
     # println("computing L")
@@ -283,10 +295,15 @@ function Landau_rhs_2!(v̇, v::AbstractArray{ST}, params) where {ST}
 
     # solve for vector field
     # v̇[1,:] .= K1_plus * Lij * J  
-    # v̇[2,:] .= K2_plus * Lij * J  
-    v̇[1,:] .= -1 .* K1_plus * Lij * J  
-    v̇[2,:] .= -1 .* K2_plus * Lij * J  
+    # v̇[2,:] .= K2_plus * Lij * J
+    # v̇[1,:] .= -1 .* (K1_plus * (Lij * J))
+    # v̇[2,:] .= -1 .* (K2_plus * (Lij * J))
+
+    v̇[1,:] .= K1 \ (Lij * J)
+    v̇[2,:] .= K2 \ (Lij * J)
+
+    v̇[1,:] .*= -1
+    v̇[2,:] .*= -1
 
     return v̇
-
 end

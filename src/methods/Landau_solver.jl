@@ -4,7 +4,7 @@
 
 
 function IM_rule!(g, x, y, f, Δt, params)
-    g .= x .- y .- Δt * f(0.5 * (y .+ x), params)
+    g .= x .- y .- Δt .* f((y .+ x) ./ 2, params)
 end
 
 function IM_update!(y_new, y_new_guess, yₙ, f, Δt, params)
@@ -34,7 +34,7 @@ function Picard_iterate_over_particles(f::Function, dist, sdist, tol, Δt)
     j = 0
     println("entering Picard loop")
     while err > tol
-        println("j=",j)
+        println("j=", j)
 
         S = projection(v_prev, dist, sdist)
         L = VlasovMethods.compute_J(sdist)
@@ -42,30 +42,31 @@ function Picard_iterate_over_particles(f::Function, dist, sdist, tol, Δt)
         params = (dist = dist, sdist = sdist, B = sdist.basis, L = L, v_array = v_prev)
 
         @time Threads.@threads for i in axes(v_prev,2)
+        # @time for i in axes(v_prev,2)
             # @show i
-            v_new[:,i] .= IM_update!(v_new[:,i], v_prev[:,i], dist.particles.v[:,i], f, Δt, params)
+            IM_update!(view(v_new, :, i), view(v_prev, :, i), view(dist.particles.v, :, i), f, Δt, params)
         end
 
-        @show err = norm(v_new .- v_prev)^2
+        @show err = sqeuclidean(v_new, v_prev)
         v_prev .= v_new
         j += 1
     end
 
     dist.particles.v .= v_new
+    
     return v_new
 end
 
 function f!(dv::AbstractArray{T}, v_nplus1::AbstractArray{T}, v_n, params, Δt) where T
-    v_midpoint = (v_nplus1 + v_n) / 2
+    v_midpoint = (v_nplus1 .+ v_n) ./ 2
 
     # rhs = copy(v_n)
     @time Landau_rhs_2!(dv, v_midpoint, params)
 
-    explicit_update!(view(dv, 1, :), v_n[1, :], Δt)
-    explicit_update!(view(dv, 2, :), v_n[2, :], Δt)
+    explicit_update!(view(dv, 1, :), view(v_n, 1, :), Δt)
+    explicit_update!(view(dv, 2, :), view(v_n, 2, :), Δt)
 
     dv .-= v_nplus1
-
 end
 
 # function f(dv, v_nplus1::AbstractArray{T}, v_n, params, Δt) where T
@@ -102,7 +103,7 @@ function Picard_iterate_Landau_nls!(dist, ent, tol, ftol, β, Δt, ti, t, v_prev
     
     # use Hermite extrapolation to get an initial guess
     if ti ≥ 4
-        Extrapolators.extrapolate!(t - 2Δt, v_prev_2, rhs_prev[:,:,2], t - Δt, v_prev, rhs_prev[:,:,1], t, v_guess, Extrapolators.HermiteExtrapolation())
+        Extrapolators.extrapolate!(t - 2Δt, v_prev_2, view(rhs_prev, :, :, 2), t - Δt, v_prev, view(rhs_prev, :, :, 1), t, v_guess, Extrapolators.HermiteExtrapolation())
     end
 
     rhs_prev[:,:,2] .= rhs_prev[:,:,1]
@@ -132,11 +133,11 @@ function Picard_iterate_Landau_nls!(dist, ent, tol, ftol, β, Δt, ti, t, v_prev
     dist.particles.v .= sol.u
 
     # update rhs storage
-    rhs_prev[:,:,1] .= Landau_rhs_2!(rhs_prev[:,:,1], dist.particles.v, params)
+    # rhs_prev[:,:,1] .= Landau_rhs_2!(view(rhs_prev, :, :, 1), dist.particles.v, params)
+    Landau_rhs_2!(view(rhs_prev, :, :, 1), dist.particles.v, params)
 
     # return solution at t
     return sol
-    # return sol
 end
 
 

@@ -57,7 +57,7 @@ function _first_derivative(S::TwoDSpline, component::Int)
         # du_i .= coefs[i,:] # get vector in coefficient matrix corresponding to the i-th spline in the non-differentiated direction 
         for j in Iterators.Reverse(axes(coefs, 2)) # now loop over other direction (in which we are differentiating)
             dt = t[j + k - 1] - t[j] 
-            if iszero(dt) || j == firstindex(coefs[i,:]) # check for zeros in denom. 
+            if iszero(dt) || j == firstindex(view(coefs, i, :)) # check for zeros in denom. 
                 d_coefs[i,j] = zero(eltype(d_coefs))
             else
                 d_coefs[i,j] = (k - 1) * (d_coefs[i,j] - d_coefs[i,j-1]) / dt

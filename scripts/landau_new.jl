@@ -65,7 +65,7 @@ chunksize = 100
 @time for (i,t) in pairs(trange[3:end])
     println("i=",i, " t =",t)
     # v_full[:,:,i+2] = VlasovMethods.Picard_iterate_Landau!(dist, sdist, tol, β, tstep, i+2, t, v_full[:,:,i], rhs_prev, sdist2, max_iters, m )
-    global sol = VlasovMethods.Picard_iterate_Landau_nls!(dist, entropy, tol, ftol, β, tstep, i+2, t, v_full[:,:,i+1], v_full[:,:,i], rhs_prev, m, n, chunksize)
+    sol = VlasovMethods.Picard_iterate_Landau_nls!(dist, entropy, tol, ftol, β, tstep, i+2, t, v_full[:,:,i+1], v_full[:,:,i], rhs_prev, m, n, chunksize)
     v_full[:,:,i+2] .= dist.particles.v
     rhs_full[:,:,i+2] .= rhs_prev[:,:,1]
     if !SciMLBase.successful_retcode(sol.retcode)

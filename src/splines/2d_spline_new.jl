@@ -47,7 +47,7 @@ function evaluate(S::TwoDSpline, x::AbstractVector)
                 j = mod1(ilast2 + 1 - δi2, M)
                 result += S.coefficients[(j - 1)* M + i] * bi * b2
             else
-                i = ilast1 + 1 - δi, M
+                i = ilast1 + 1 - δi
                 j = ilast2 + 1 - δi2
                 if i > 0 && i <= M && j > 0 && j <= M 
                     result += S.coefficients[(j - 1)* M + i] * bi * b2
@@ -87,7 +87,7 @@ end
 
 function ij_from_k(k::Int, M::Int)
     i = mod1(k, M)
-    j = Int((k - i)/M) + 1
+    j = Int((k - i)/M) + 1#TODO: Use proper int division
 
     return i, j
 end
@@ -99,9 +99,9 @@ end
 #     return [a(v[1], Derivative(1)) * b(v[2]), a(v[1]) * b(v[2], Derivative(1))]
 # end
 
-function eval_bfd(B::AbstractBSplineBasis, k, v::Vector{T}) where T
+function eval_bfd(B::AbstractBSplineBasis, k, v::AbstractVector{T}) where T
     # M = length(B)
-    i,j = ij_from_k(k, length(B))
+    i, j = ij_from_k(k, length(B))
 
     a = B[i,T]
     b = B[j,T]
@@ -112,7 +112,7 @@ end
 
 function eval_bfd(B::AbstractBSplineBasis, k, v1::T, v2::T) where T
     # M = length(B)
-    i,j = ij_from_k(k, length(B))
+    i, j = ij_from_k(k, length(B))
 
     a = B[i,T]
     b = B[j,T]
@@ -123,7 +123,7 @@ end
 
 function eval_bfd!(derivative::AbstractVector{T}, B::AbstractBSplineBasis, k, v, α, β) where T
     # M = length(B)
-    i,j = ij_from_k(k, length(B))
+    i, j = ij_from_k(k, length(B))
 
     a = B[i,T]
     b = B[j,T]
@@ -134,7 +134,7 @@ end
 
 function eval_bfd!(derivative::AbstractVector{T}, B::AbstractBSplineBasis, k, v1::T, v2::T, α, β) where T
     # M = length(B)
-    i,j = ij_from_k(k, length(B))
+    i, j = ij_from_k(k, length(B))
 
     a = B[i,T]
     b = B[j,T]
@@ -143,7 +143,7 @@ function eval_bfd!(derivative::AbstractVector{T}, B::AbstractBSplineBasis, k, v1
     derivative[2] = α * derivative[2] + β * a(v1) * b(v2, Derivative(1))
 end
 
-function evaluate_der_2d(B::AbstractBSplineBasis, v::Vector{T}) where T
+function evaluate_der_2d(B::AbstractBSplineBasis, v::AbstractVector{T}) where T
     M = length(B)
 
     i1, bs1 = evaluate_all(B, v[1])
@@ -154,7 +154,7 @@ function evaluate_der_2d(B::AbstractBSplineBasis, v::Vector{T}) where T
     i2_der, bs2_der = evaluate_all(B, v[2], Derivative(1))
 
     index_list = zeros(Int, length(bs1) * length(bs2))
-    result = zeros(T,(2,length(bs1) * length(bs2)))
+    result = zeros(T, (2, length(bs1) * length(bs2)))
 
     count = 1 #TODO: should make this indexing cleaner
     for (δi, bi) ∈ pairs(bs1)
@@ -177,7 +177,7 @@ function evaluate_der_2d(B::AbstractBSplineBasis, v::Vector{T}) where T
 end
 
 
-function evaluate_der_2d_indices(B::AbstractBSplineBasis, v::Vector{T}) where T
+function evaluate_der_2d_indices(B::AbstractBSplineBasis, v::AbstractVector{T}) where T
     M = length(B)
 
     i1, bs1 = evaluate_all(B, v[1])
@@ -245,26 +245,25 @@ function evaluate_der_2d_indices(B::AbstractBSplineBasis, v1::T, v2::T) where T
 end
 
 
-
 function compute_shift_scale(i, knots)
     # @show 0.5 * (knots[i] + knots[i+1])
     # @show 0.5 * (knots[i + 1] - knots[i])
-    return 0.5 * (knots[i] + knots[i+1]), 0.5 * (knots[i + 1] - knots[i])
+    return (knots[i] + knots[i+1]) / 2, (knots[i + 1] - knots[i]) / 2
 end
 
 function compute_lin_transform(x::T, shift::T, scale::T) where T
-    return x .* scale + shift
+    return x .* scale .+ shift
 end
 
 function gauss_quad(f::Function, basis::AbstractBSplineBasis, n::Int, params)
     T = eltype(params.sdist)
-    k = BSplineKit.order(basis)
+    # k = BSplineKit.order(basis)
     # knots = BSplineKit.knots(basis)[k:end-k+1]
     knots = BSplineKit.knots(basis)[3:end-1]
     M = length(knots) - 1
     x, w = gausslegendre(n)
 
-    res = zero(T)
+    res::T = 0
 
     for i in 1:M, j in 1:M, l in 1:M, m in 1:M
         shift_i, scale_i = compute_shift_scale(i, knots)
@@ -275,9 +274,7 @@ function gauss_quad(f::Function, basis::AbstractBSplineBasis, n::Int, params)
         for i1 in 1:n, j1 in 1:n, l1 in 1:n, m1 in 1:n
             v1 = compute_lin_transform([x[i1], x[j1]], [shift_i, shift_j], [scale_i, scale_j])
             v2 = compute_lin_transform([x[l1], x[m1]], [shift_l, shift_m], [scale_l, scale_m])
-            v1 = T.(v1)
-            v2 = T.(v2)
-            res = res + f(v1, v2, params) * w[i1] * w[j1] * w[l1] * w[m1] * scale_i * scale_j * scale_l * scale_m
+            res = res + f(T.(v1), T.(v2), params) * w[i1] * w[j1] * w[l1] * w[m1] * scale_i * scale_j * scale_l * scale_m
         end
     end
 
@@ -287,12 +284,12 @@ end
 function gauss_quad(f::Function, basis::AbstractBSplineBasis, iknots::AbstractRange, jknots::AbstractRange, n::Int, params)
     T = eltype(params.sdist)
     # M = length(basis) + 1
-    k = BSplineKit.order(basis)
+    # k = BSplineKit.order(basis)
     knots = BSplineKit.knots(basis)
     M = length(knots) - 1
     x, w = gausslegendre(n)
 
-    res = zero(T)
+    res::T = 0
 
     for i in iknots[1:end-1], j in jknots[1:end-1], l in iknots[1:end-1], m in jknots[1:end-1]
         shift_i, scale_i = compute_shift_scale(i, knots)
@@ -303,9 +300,7 @@ function gauss_quad(f::Function, basis::AbstractBSplineBasis, iknots::AbstractRa
         for i1 in 1:n, j1 in 1:n, l1 in 1:n, m1 in 1:n
             v1 = compute_lin_transform([x[i1], x[j1]], [shift_i, shift_j], [scale_i, scale_j])
             v2 = compute_lin_transform([x[l1], x[m1]], [shift_l, shift_m], [scale_l, scale_m])
-            v1 = T.(v1)
-            v2 = T.(v2)
-            res = res + f(v1, v2, params) * w[i1] * w[j1] * w[l1] * w[m1] * scale_i * scale_j * scale_l * scale_m
+            res += f(T.(v1), T.(v2), params) * w[i1] * w[j1] * w[l1] * w[m1] * scale_i * scale_j * scale_l * scale_m
         end
     end
 
@@ -315,13 +310,13 @@ end
 function gauss_quad_2d(f::Function, basis::AbstractBSplineBasis, n::Int, params)
     T = eltype(params.sdist)
     # M = length(basis) + 1
-    k = BSplineKit.order(basis)
+    # k = BSplineKit.order(basis)
     # knots = BSplineKit.knots(basis)[k:end-k+1]
     knots = BSplineKit.knots(basis)[3:end-1]
     M = length(knots) - 1
     x, w = gausslegendre(n)
 
-    res = zero(T)
+    res::T = 0
 
     for i in 1:M, j in 1:M
         shift_i, scale_i = compute_shift_scale(i, knots)
@@ -329,8 +324,8 @@ function gauss_quad_2d(f::Function, basis::AbstractBSplineBasis, n::Int, params)
 
         for i1 in 1:n, j1 in 1:n
             v1 = compute_lin_transform([x[i1], x[j1]], [shift_i, shift_j], [scale_i, scale_j])
-            v1 = T.(v1)
-            res = res + f(v1, params) * w[i1] * w[j1] * scale_i * scale_j 
+            # v1 = T.(v1) # TODO: This is not good as it can prevent v1 from having a stable type !
+            res += f(T.(v1), params) * w[i1] * w[j1] * scale_i * scale_j
         end
     end
 
@@ -341,23 +336,21 @@ end
 function gauss_quad_1d(f::Function, basis::AbstractBSplineBasis, n::Int, params)
     T = eltype(params.sdist)
     # M = length(basis) + 1
-    k = BSplineKit.order(basis)
+    # k = BSplineKit.order(basis)
     knots = BSplineKit.knots(basis)[1:end]
     M = length(knots) - 1
     # knots = BSplineKit.knots(basis)[k:end-k+1]
     x, w = gausslegendre(n)
 
-    res = zero(T)
+    res::T = 0
 
     for i in 1:M
         shift_i, scale_i = compute_shift_scale(i, knots)
         for i1 in 1:n
             v1 = compute_lin_transform(x[i1], shift_i, scale_i)
-            v1 = T.(v1)
-            res = res + f(v1, params) * w[i1] * scale_i
+            res += f(T.(v1), params) * w[i1] * scale_i
         end
     end
 
     return res
 end
-

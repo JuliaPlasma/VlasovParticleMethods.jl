@@ -26,8 +26,8 @@ Base.size(dist::SplineDistribution) = length(dist.coefficients)
 Base.eltype(::SplineDistribution{XD, VD, ST, DT, BT, MT, FT}) where {XD, VD, ST, DT, BT, MT, FT} = DT
 
 Cache(AT, s::SplineDistribution{XD, VD, ST, DT, BT, MT, FT}) where {XD, VD, ST, DT, BT, MT, FT} = SplineDistribution(XD, VD, s.basis, zeros(AT, axes(s.coefficients)), s.mass_matrix)
-CacheType(AT, ::SplineDistribution{XD, VD, TwoDSpline{DT, BT, BT2}, DT, BT, MT, FT}) where {XD, VD, ST, DT, BT, MT, FT, BT2} = SplineDistribution{XD, VD, TwoDSpline{AT, BT, BT2}, AT, BT, MT, FT}
-CacheType(AT, ::SplineDistribution{XD, VD, Spline{DT, BT, Vector{DT}}, DT, BT, MT, FT}) where {XD, VD, ST, DT, BT, MT, FT} = SplineDistribution{XD, VD, Spline{AT, BT, Vector{AT}}, AT, BT, MT, FT}
+CacheType(AT, ::SplineDistribution{XD, VD, TwoDSpline{DT, BT, BT2}, DT, BT, MT, FT}) where {XD, VD, DT, BT, MT, FT, BT2} = SplineDistribution{XD, VD, TwoDSpline{AT, BT, BT2}, AT, BT, MT, FT}
+CacheType(AT, ::SplineDistribution{XD, VD, Spline{DT, BT, Vector{DT}}, DT, BT, MT, FT}) where {XD, VD, DT, BT, MT, FT} = SplineDistribution{XD, VD, Spline{AT, BT, Vector{AT}}, AT, BT, MT, FT}
 
 
 function SplineDistribution(xdim, vdim, nknots::KT, s_order::OT, domain::Tuple, length_big_cell, bc::Symbol=:Dirichlet, compute_mass_galerkin::Bool=true) where {KT, OT}
