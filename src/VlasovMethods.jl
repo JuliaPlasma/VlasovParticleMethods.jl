@@ -6,33 +6,31 @@ global_logger(TerminalLogger())
 
 using BSplineKit
 using BSplineKit.BSplines
+using Distances
+using FastGaussQuadrature
 using HDF5
+using LinearAlgebra
+using LinearSolve
+using NonlinearSolve
 using OffsetArrays
 using Parameters
 using ParticleMethods
+# using Plots
 using PoissonSolvers
 using ProgressMeter
 using Random
 using Sobol
-using SpecialFunctions
-using LinearAlgebra
-using QuadGK
-using HCubature
-using Plots
 using SimpleSolvers
-using NLsolve
-# using SimpleNonlinearSolve
-using NonlinearSolve
-using Integrals
-using LinearSolve
+using SpecialFunctions
 using Trapz
-using FastGaussQuadrature
+
+# import DifferentialEquations
+# import NaNMath
+
 import GeometricEquations
 import GeometricEquations: ntime
 import GeometricIntegrators.Integrators
 import GeometricIntegrators.Extrapolators
-# import DifferentialEquations
-# import NaNMath
 
 # abstract types
 
