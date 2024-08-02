@@ -2,23 +2,23 @@ struct SplineDistribution{XD, VD, ST, DT, BT, MT, FT} <: DistributionFunction{XD
     spline::ST
     # spline::Spline{DT, BT, Vector{DT}}
     basis::BT
-    coefficients::AbstractArray{DT}
-    # coefficients::Vector{DT}
+    coefficients::Vector{DT}
     mass_matrix::MT
     mass_fact::FT
 
     function SplineDistribution(xdim, vdim, basis::BT, coefficients::AbstractArray{DT}, mass_matrix) where {BT, DT}
+        _coefficients = Vector(coefficients)
         # mass_1d = galerkin_matrix(basis)
         if vdim == 1
-            spline = Spline(basis, coefficients)
+            spline = Spline(basis, _coefficients)
             # mass_matrix = mass_1d
         elseif vdim == 2
-            spline = TwoDSpline(basis, coefficients)
+            spline = TwoDSpline(basis, _coefficients)
             # mass_matrix = kron(mass_1d, mass_1d)
         end
         # mass_fact = lu(mass_matrix)
         mass_fact = cholesky(mass_matrix)
-        new{xdim, vdim, typeof(spline), DT, typeof(basis), typeof(mass_matrix), typeof(mass_fact)}(spline, basis, coefficients, mass_matrix, mass_fact)
+        new{xdim, vdim, typeof(spline), DT, typeof(basis), typeof(mass_matrix), typeof(mass_fact)}(spline, basis, _coefficients, mass_matrix, mass_fact)
     end
 end
 

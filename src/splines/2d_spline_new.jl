@@ -31,11 +31,11 @@ order(S::TwoDSpline) = order(typeof(S))
 (S::TwoDSpline)(x, y) = evaluate(S, [x, y])
 # (S::TwoDSpline)(x, y) = evaluate(S, x, y)
 
-function evaluate(S::TwoDSpline, x::AbstractVector)
+function evaluate(S::TwoDSpline{T}, x::AbstractVector) where {T}
     B = basis(S)
     M = length(B)
-    k = order(S)
-    result = zero(eltype(S.coefficients))
+    # k = order(S)
+    result::T = 0
     
     ilast1, bs1 = evaluate_all(B, x[1])
     ilast2, bs2 = evaluate_all(B, x[2])
@@ -55,6 +55,7 @@ function evaluate(S::TwoDSpline, x::AbstractVector)
             end
         end
     end
+    
     return result
 end
 
@@ -272,9 +273,9 @@ function gauss_quad(f::Function, basis::AbstractBSplineBasis, n::Int, params)
         shift_m, scale_m = compute_shift_scale(m, knots)
 
         for i1 in 1:n, j1 in 1:n, l1 in 1:n, m1 in 1:n
-            v1 = compute_lin_transform([x[i1], x[j1]], [shift_i, shift_j], [scale_i, scale_j])
-            v2 = compute_lin_transform([x[l1], x[m1]], [shift_l, shift_m], [scale_l, scale_m])
-            res = res + f(T.(v1), T.(v2), params) * w[i1] * w[j1] * w[l1] * w[m1] * scale_i * scale_j * scale_l * scale_m
+            v1 = convert(Array{T}, compute_lin_transform([x[i1], x[j1]], [shift_i, shift_j], [scale_i, scale_j]))
+            v2 = convert(Array{T}, compute_lin_transform([x[l1], x[m1]], [shift_l, shift_m], [scale_l, scale_m]))
+            res += f(v1, v2, params) * w[i1] * w[j1] * w[l1] * w[m1] * scale_i * scale_j * scale_l * scale_m
         end
     end
 
@@ -298,9 +299,9 @@ function gauss_quad(f::Function, basis::AbstractBSplineBasis, iknots::AbstractRa
         shift_m, scale_m = compute_shift_scale(m, knots)
 
         for i1 in 1:n, j1 in 1:n, l1 in 1:n, m1 in 1:n
-            v1 = compute_lin_transform([x[i1], x[j1]], [shift_i, shift_j], [scale_i, scale_j])
-            v2 = compute_lin_transform([x[l1], x[m1]], [shift_l, shift_m], [scale_l, scale_m])
-            res += f(T.(v1), T.(v2), params) * w[i1] * w[j1] * w[l1] * w[m1] * scale_i * scale_j * scale_l * scale_m
+            v1 = convert(Array{T}, compute_lin_transform([x[i1], x[j1]], [shift_i, shift_j], [scale_i, scale_j]))
+            v2 = convert(Array{T}, compute_lin_transform([x[l1], x[m1]], [shift_l, shift_m], [scale_l, scale_m]))
+            res += f(v1, v2, params) * w[i1] * w[j1] * w[l1] * w[m1] * scale_i * scale_j * scale_l * scale_m
         end
     end
 
@@ -323,9 +324,8 @@ function gauss_quad_2d(f::Function, basis::AbstractBSplineBasis, n::Int, params)
         shift_j, scale_j = compute_shift_scale(j, knots)
 
         for i1 in 1:n, j1 in 1:n
-            v1 = compute_lin_transform([x[i1], x[j1]], [shift_i, shift_j], [scale_i, scale_j])
-            # v1 = T.(v1) # TODO: This is not good as it can prevent v1 from having a stable type !
-            res += f(T.(v1), params) * w[i1] * w[j1] * scale_i * scale_j
+            v1 = convert(Array{T}, compute_lin_transform([x[i1], x[j1]], [shift_i, shift_j], [scale_i, scale_j]))
+            res += f(v1, params) * w[i1] * w[j1] * scale_i * scale_j
         end
     end
 
@@ -347,8 +347,8 @@ function gauss_quad_1d(f::Function, basis::AbstractBSplineBasis, n::Int, params)
     for i in 1:M
         shift_i, scale_i = compute_shift_scale(i, knots)
         for i1 in 1:n
-            v1 = compute_lin_transform(x[i1], shift_i, scale_i)
-            res += f(T.(v1), params) * w[i1] * scale_i
+            v1 = convert(Array{T}, compute_lin_transform(x[i1], shift_i, scale_i))
+            res += f(v1, params) * w[i1] * scale_i
         end
     end
 

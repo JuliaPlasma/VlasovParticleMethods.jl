@@ -130,7 +130,7 @@ function projection(velocities::AbstractMatrix{VT}, dist::ParticleDistribution{1
 
     # projection of delta functions to splines of @jipolanco 
     # https://github.com/jipolanco/BSplineKit.jl/issues/48
-    for p in eachindex(velocities[1,:])
+    for p in axes(velocities, 2)
         ilast1, bs1 = final_dist.basis(velocities[1,p])  # same as `evaluate_all`, first component
         ilast2, bs2 = final_dist.basis(velocities[2,p])  # same as `evaluate_all`, second component
         # Iterate over evaluated basis functions.

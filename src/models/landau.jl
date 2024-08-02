@@ -8,14 +8,14 @@ struct Landau{XD, VD, DT <: DistributionFunction{XD,VD}, ET <: Entropy, T} <: Vl
     end
 end
 
-function integrand_J(v::AbstractArray{T}, B, i, j, sdist) where T
-    return T(B[i, T](v[1]) * B[j, T](v[2]) * (one(T) + log(sdist.spline(v))))
+function integrand_J(v::AbstractArray{T}, B, i, j, sdist)::T where T
+    return B[i, T](v[1]) * B[j, T](v[2]) * (one(T) + log(sdist.spline(v)))
 end
 
-function integrand_J(v::AbstractArray{T}, params) where T
+function integrand_J(v::AbstractArray{T}, params)::T where T
     # if params.sdist.spline(v) > eps(T)
         # return (params.B[params.i, T](v[1]) * params.B[params.j, T](v[2]) * (1. + log(f_Maxwellian(v))))::T
-    return T(params.B[params.i, T](v[1]) * params.B[params.j, T](v[2]) * (one(T) + log(params.sdist.spline(v))))
+    return params.B[params.i, T](v[1]) * params.B[params.j, T](v[2]) * (one(T) + log(params.sdist.spline(v)))
     # else
     #     return zero(T)
     # end
@@ -56,22 +56,50 @@ function compute_J_gl(sdist::SplineDistribution{1,2}, n)
     return int
 end
 
-function compute_U(v_α, v_β)
-    n = length(v_α)
-    U = zeros(eltype(v_α),(n,n))
+# function compute_U(v_α::AbstractVector{T}, v_β::AbstractVector{T}) where {T}
+#     n = length(v_α)
+#     U = zeros(T, (n,n))
 
-    norm_diff = norm(v_α - v_β)
+#     norm_diff = euclidean(v_α, v_β)
+
+#     if v_α != v_β
+#         for i in CartesianIndices(U)
+#             if i[1] == i[2]
+#                 U[i] += 1 / norm_diff
+#             end
+#             U[i] -= (v_α[i[1]] - v_β[i[1]]) * (v_α[i[2]] - v_β[i[2]]) / norm_diff^3
+#         end
+#     end
+
+#     return U
+# end
+
+
+function compute_U!(U, v_α, v_β)
+    norm_diff = euclidean(v_α, v_β)
+
+    U .= 0
 
     if v_α != v_β
-        for i in CartesianIndices(U)
-            if i[1] == i[2]
-                U[i] += 1/norm_diff
+        for i in axes(U,1)
+            for j in axes(U,2)
+                if i == j
+                    U[i,j] += 1 / norm_diff
+                end
+                U[i,j] -= (v_α[i] - v_β[i]) * (v_α[j] - v_β[j]) / norm_diff^3
             end
-            U[i] -= (v_α[i[1]] - v_β[i[1]])*(v_α[i[2]] - v_β[i[2]])./norm_diff^3
         end
     end
+
     return U
 end
+
+function compute_U(v_α, v_β)
+    n = length(v_α)
+    U = zeros(eltype(v_α), (n,n))
+    compute_U!(U, v_α, v_β)
+end
+
 
 # particle-to-particle version
 function Landau_rhs(v, params)
@@ -81,23 +109,25 @@ function Landau_rhs(v, params)
     # params.fdist.basis is the spline basis
     v̇ = zero(v)
     K = size(params.sdist) # length of tensor product basis (this is the square of the 1d basis length)
+    n = length(v)
+    U = zeros(n,n)
 
-    ind1, res1 = evaluate_der_2d(params.B, v)
+    ind_s, res_s = evaluate_der_2d(params.B, v)
 
     for α in axes(params.v_array, 2)
-        vα = @view params.v_array[:,α]
-        U = compute_U(v, vα)
+        vα = params.v_array[:,α]
+        compute_U!(U, v, vα)
         ind_α, res_α = evaluate_der_2d(params.B, vα)
 
-        for (i, k) in pairs(ind1)
+        for (i, k) in pairs(ind_s)
             if k > 0 && k ≤ K
-                v̇ .+= params.dist.particles.w[1,α] * params.L[k] * U * res1[:, i]
+                v̇ .+= params.dist.particles.w[1,α] * params.L[k] * (U * res_s[:, i])
             end
         end
 
-        for (i2, k2) in pairs(ind_α)
-            if k2 > 0 && k2 ≤ K
-                v̇ .-= params.dist.particles.w[1,α] * params.L[k2] * U * res_α[:, i2]
+        for (i, k) in pairs(ind_α)
+            if k > 0 && k ≤ K
+                v̇ .-= params.dist.particles.w[1,α] * params.L[k] * (U * res_α[:, i])
             end
         end
     end
@@ -205,23 +235,28 @@ end
 # end
 
 
+function L_integrand_gh(v1::AbstractVector{T}, v2::AbstractVector{T}, sdist, i, j)::T where T
+    basis_derivative = zeros(T, 2)
+
+    # U = compute_U(v1, v2)
+    eval_bfd!(basis_derivative, sdist.basis, i, v1, 0, 1)
+    eval_bfd!(basis_derivative, sdist.basis, i, v2, 1, -1)
+
+    integrand = sdist.spline(v1) * (transpose(basis_derivative) * compute_U(v1, v2))
+    # integrand = transpose(basis_derivative) * sdist.spline(v1) * compute_U(v1, v2)
+
+    eval_bfd!(basis_derivative, sdist.basis, j, v1, 0, 1)
+    eval_bfd!(basis_derivative, sdist.basis, j, v2, 1, -1)
+
+    return sdist.spline(v2) * (integrand * basis_derivative)
+end
+
 function L_integrand_gh(v1::AbstractVector{T}, v2::AbstractVector{T}, params) where T
     id_list_1 = evaluate_der_2d_indices(params.sdist.basis, v1)
     id_list_2 = evaluate_der_2d_indices(params.sdist.basis, v2)
     
     if (params.k[1] in id_list_1 || params.k[1] in id_list_2) && (params.k[2] in id_list_1 || params.k[2] in id_list_2)
-        # U = compute_U(v1, v2)
-        basis_derivative = zeros(T, 2)
-        eval_bfd!(basis_derivative, params.sdist.basis, params.k[1], v1, 0, 1)
-        eval_bfd!(basis_derivative, params.sdist.basis, params.k[1], v2, 1, -1)
-
-        integrand = transpose(basis_derivative) * params.sdist.spline(v1) * compute_U(v1, v2)
-        # integrand = transpose(basis_derivative) * params.sdist.spline(v1) * compute_U(v1, v2)
-
-        eval_bfd!(basis_derivative, params.sdist.basis, params.k[2], v1, 0, 1)
-        eval_bfd!(basis_derivative, params.sdist.basis, params.k[2], v2, 1, -1)
-
-        return T(integrand * params.sdist.spline(v2) * basis_derivative)
+        L_integrand_gh(v1, v2, params.sdist, params.k[1], params.k[2])
     else
         return zero(T)
     end
@@ -233,28 +268,26 @@ function compute_L_ij_gh(sdist::SplineDistribution{1,2}, n::Int)
     B = sdist.basis
     M = length(B)
 
-    Threads.@threads for k in CartesianIndices(L)
-        # i1, j1 = ij_from_k(k[1], M)
-        # i2, j2 = ij_from_k(k[2], M)
+    Threads.@threads for i in axes(L,1)
+        for j in axes(L,2)[i:end]
+            # i1, j1 = ij_from_k(i, M)
+            # i2, j2 = ij_from_k(j, M)
 
-        # iknots = BSplines.common_support(B[i1], B[i2])
-        # jknots = BSplines.common_support(B[j1], B[j2])
+            # iknots = BSplines.common_support(B[i1], B[i2])
+            # jknots = BSplines.common_support(B[j1], B[j2])
 
-        if k[1] ≤ k[2]
-        # if k[1] ≤ k[2] && length(iknots) > 1 && length(jknots) > 1
-            params = (k = k, sdist = sdist)
-            L[k] = gauss_quad(L_integrand_gh, sdist.basis, n, params)
-            # L[k] = gauss_quad(L_integrand_gh, sdist.basis, iknots, jknots, n, params)
-        end
-    end
-
-    for k in CartesianIndices(L)
-        if k[1] > k[2] 
-            L[k] = L[k[2], k[1]]
+            params = (k = (i,j), sdist = sdist)
+            L[i,j] = gauss_quad(L_integrand_gh, sdist.basis, n, params)
         end
     end
 
     L ./= 2
+
+    for i in axes(L,1)
+        for j in axes(L,2)[begin:i-1]
+            L[i,j] = L[j,i]
+        end
+    end
 
     return L
 end
