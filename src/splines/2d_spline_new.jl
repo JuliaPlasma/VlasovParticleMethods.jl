@@ -107,7 +107,7 @@ function eval_bfd(B::AbstractBSplineBasis, k, v::AbstractVector{T}) where T
     a = B[i,T]
     b = B[j,T]
 
-    return [a(v[1], Derivative(1)) * b(v[2]), a(v[1]) * b(v[2], Derivative(1))]
+    @SVector [a(v[1], Derivative(1)) * b(v[2]), a(v[1]) * b(v[2], Derivative(1))]
 end
 
 
@@ -118,7 +118,7 @@ function eval_bfd(B::AbstractBSplineBasis, k, v1::T, v2::T) where T
     a = B[i,T]
     b = B[j,T]
 
-    return [a(v1, Derivative(1)) * b(v2), a(v1) * b(v2, Derivative(1))]
+    @SVector [a(v1, Derivative(1)) * b(v2), a(v1) * b(v2, Derivative(1))]
 end
 
 
@@ -272,9 +272,18 @@ function gauss_quad(f::Function, basis::AbstractBSplineBasis, n::Int, params)
         shift_l, scale_l = compute_shift_scale(l, knots)
         shift_m, scale_m = compute_shift_scale(m, knots)
 
+        shift_ij = @SVector [shift_i, shift_j]
+        shift_lm = @SVector [shift_l, shift_m]
+        scale_ij = @SVector [scale_i, scale_j]
+        scale_lm = @SVector [scale_l, scale_m]
+
         for i1 in 1:n, j1 in 1:n, l1 in 1:n, m1 in 1:n
-            v1 = convert(Array{T}, compute_lin_transform([x[i1], x[j1]], [shift_i, shift_j], [scale_i, scale_j]))
-            v2 = convert(Array{T}, compute_lin_transform([x[l1], x[m1]], [shift_l, shift_m], [scale_l, scale_m]))
+            x_ij = @SVector [x[i1], x[j1]]
+            x_lm = @SVector [x[l1], x[m1]]
+    
+            v1 = compute_lin_transform(x_ij, shift_ij, scale_ij)
+            v2 = compute_lin_transform(x_lm, shift_lm, scale_lm)
+
             res += f(v1, v2, params) * w[i1] * w[j1] * w[l1] * w[m1] * scale_i * scale_j * scale_l * scale_m
         end
     end
@@ -323,8 +332,14 @@ function gauss_quad_2d(f::Function, basis::AbstractBSplineBasis, n::Int, params)
         shift_i, scale_i = compute_shift_scale(i, knots)
         shift_j, scale_j = compute_shift_scale(j, knots)
 
+        shift_ij = @SVector [shift_i, shift_j]
+        scale_ij = @SVector [scale_i, scale_j]
+
         for i1 in 1:n, j1 in 1:n
-            v1 = convert(Array{T}, compute_lin_transform([x[i1], x[j1]], [shift_i, shift_j], [scale_i, scale_j]))
+            x_ij = @SVector [x[i1], x[j1]]
+
+            v1 = compute_lin_transform(x_ij, shift_ij, scale_ij)
+            
             res += f(v1, params) * w[i1] * w[j1] * scale_i * scale_j
         end
     end

@@ -8,11 +8,11 @@ struct Landau{XD, VD, DT <: DistributionFunction{XD,VD}, ET <: Entropy, T} <: Vl
     end
 end
 
-function integrand_J(v::AbstractArray{T}, B, i, j, sdist)::T where T
+function integrand_J(v::AbstractArray{T}, B, i, j, sdist) where T
     return B[i, T](v[1]) * B[j, T](v[2]) * (one(T) + log(sdist.spline(v)))
 end
 
-function integrand_J(v::AbstractArray{T}, params)::T where T
+function integrand_J(v::AbstractArray{T}, params) where T
     # if params.sdist.spline(v) > eps(T)
         # return (params.B[params.i, T](v[1]) * params.B[params.j, T](v[2]) * (1. + log(f_Maxwellian(v))))::T
     return params.B[params.i, T](v[1]) * params.B[params.j, T](v[2]) * (one(T) + log(params.sdist.spline(v)))
@@ -94,46 +94,63 @@ function compute_U!(U, v_α, v_β)
     return U
 end
 
-function compute_U(v_α, v_β)
-    n = length(v_α)
-    U = zeros(eltype(v_α), (n,n))
-    compute_U!(U, v_α, v_β)
+# function compute_U(v_α, v_β)
+#     n = length(v_α)
+#     U = zeros(eltype(v_α), (n,n))
+#     compute_U!(U, v_α, v_β)
+# end
+
+function compute_U(v_α::AbstractVector{T}, v_β::AbstractVector{T}) where {T}
+    norm_diff = euclidean(v_α, v_β)
+
+    if v_α != v_β
+        U11 = - (v_α[1] - v_β[1]) * (v_α[1] - v_β[1]) / norm_diff^3 + inv(norm_diff)
+        U12 = - (v_α[1] - v_β[1]) * (v_α[2] - v_β[2]) / norm_diff^3
+        U21 = - (v_α[2] - v_β[2]) * (v_α[1] - v_β[1]) / norm_diff^3
+        U22 = - (v_α[2] - v_β[2]) * (v_α[2] - v_β[2]) / norm_diff^3 + inv(norm_diff)
+
+        return @SMatrix [ U11  U12 ;
+                          U21  U22 ]
+    else
+        return @SMatrix [ zero(T)  zero(T) ;
+                          zero(T)  zero(T) ]
+    end
 end
 
 
 # particle-to-particle version
-function Landau_rhs(v, params)
-    # computes rhs for a single particle, assuming that the projection and other particle velocities are taken from the previous timestep 
-    # params.L is the vector L_k, which depends on the projection
-    # params.idist.particles.v is the particle velocities
-    # params.fdist.basis is the spline basis
-    v̇ = zero(v)
-    K = size(params.sdist) # length of tensor product basis (this is the square of the 1d basis length)
-    n = length(v)
-    U = zeros(n,n)
+# function Landau_rhs(v, params)
+#     # computes rhs for a single particle, assuming that the projection and other particle velocities are taken from the previous timestep 
+#     # params.L is the vector L_k, which depends on the projection
+#     # params.idist.particles.v is the particle velocities
+#     # params.fdist.basis is the spline basis
+#     v̇ = zero(v)
+#     K = size(params.sdist) # length of tensor product basis (this is the square of the 1d basis length)
+#     n = length(v)
+#     U = zeros(n,n)
 
-    ind_s, res_s = evaluate_der_2d(params.B, v)
+#     ind_s, res_s = evaluate_der_2d(params.B, v)
 
-    for α in axes(params.v_array, 2)
-        vα = params.v_array[:,α]
-        compute_U!(U, v, vα)
-        ind_α, res_α = evaluate_der_2d(params.B, vα)
+#     for α in axes(params.v_array, 2)
+#         vα = params.v_array[:,α]
+#         compute_U!(U, v, vα)
+#         ind_α, res_α = evaluate_der_2d(params.B, vα)
 
-        for (i, k) in pairs(ind_s)
-            if k > 0 && k ≤ K
-                v̇ .+= params.dist.particles.w[1,α] * params.L[k] * (U * res_s[:, i])
-            end
-        end
+#         for (i, k) in pairs(ind_s)
+#             if k > 0 && k ≤ K
+#                 v̇ .+= params.dist.particles.w[1,α] * params.L[k] * (U * res_s[:, i])
+#             end
+#         end
 
-        for (i, k) in pairs(ind_α)
-            if k > 0 && k ≤ K
-                v̇ .-= params.dist.particles.w[1,α] * params.L[k] * (U * res_α[:, i])
-            end
-        end
-    end
+#         for (i, k) in pairs(ind_α)
+#             if k > 0 && k ≤ K
+#                 v̇ .-= params.dist.particles.w[1,α] * params.L[k] * (U * res_α[:, i])
+#             end
+#         end
+#     end
 
-    return v̇
-end
+#     return v̇
+# end
 
 
 function compute_K(v_array::AbstractArray{T}, dist, sdist) where {T}
@@ -235,20 +252,11 @@ end
 # end
 
 
-function L_integrand_gh(v1::AbstractVector{T}, v2::AbstractVector{T}, sdist, i, j)::T where T
-    basis_derivative = zeros(T, 2)
+function L_integrand_gh(v1::AbstractVector{T}, v2::AbstractVector{T}, sdist, i, j) where T
+    basis_derivative1 = eval_bfd(sdist.basis, i, v1) - eval_bfd(sdist.basis, i, v2)
+    basis_derivative2 = eval_bfd(sdist.basis, j, v1) - eval_bfd(sdist.basis, j, v2)
 
-    # U = compute_U(v1, v2)
-    eval_bfd!(basis_derivative, sdist.basis, i, v1, 0, 1)
-    eval_bfd!(basis_derivative, sdist.basis, i, v2, 1, -1)
-
-    integrand = sdist.spline(v1) * (transpose(basis_derivative) * compute_U(v1, v2))
-    # integrand = transpose(basis_derivative) * sdist.spline(v1) * compute_U(v1, v2)
-
-    eval_bfd!(basis_derivative, sdist.basis, j, v1, 0, 1)
-    eval_bfd!(basis_derivative, sdist.basis, j, v2, 1, -1)
-
-    return sdist.spline(v2) * (integrand * basis_derivative)
+    sdist.spline(v1) * dot(basis_derivative1, compute_U(v1, v2) * basis_derivative2) * sdist.spline(v2)
 end
 
 function L_integrand_gh(v1::AbstractVector{T}, v2::AbstractVector{T}, params) where T
@@ -265,8 +273,8 @@ end
 function compute_L_ij_gh(sdist::SplineDistribution{1,2}, n::Int)
     T = eltype(sdist)
     L = zeros(T, (size(sdist), size(sdist)))
-    B = sdist.basis
-    M = length(B)
+    # B = sdist.basis
+    # M = length(B)
 
     Threads.@threads for i in axes(L,1)
         for j in axes(L,2)[i:end]
@@ -277,11 +285,9 @@ function compute_L_ij_gh(sdist::SplineDistribution{1,2}, n::Int)
             # jknots = BSplines.common_support(B[j1], B[j2])
 
             params = (k = (i,j), sdist = sdist)
-            L[i,j] = gauss_quad(L_integrand_gh, sdist.basis, n, params)
+            L[i,j] = gauss_quad(L_integrand_gh, sdist.basis, n, params) / 2
         end
     end
-
-    L ./= 2
 
     for i in axes(L,1)
         for j in axes(L,2)[begin:i-1]
@@ -335,8 +341,8 @@ function Landau_rhs_2!(v̇, v::AbstractArray{ST}, params) where {ST}
     v̇[1,:] .= K1 \ (Lij * J)
     v̇[2,:] .= K2 \ (Lij * J)
 
-    v̇[1,:] .*= -1
-    v̇[2,:] .*= -1
+    # v̇[1,:] .*= -1
+    # v̇[2,:] .*= -1
 
     return v̇
 end

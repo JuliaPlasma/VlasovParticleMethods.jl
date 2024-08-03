@@ -22,6 +22,7 @@ using Random
 using Sobol
 using SimpleSolvers
 using SpecialFunctions
+using StaticArrays
 using Trapz
 
 # import DifferentialEquations
