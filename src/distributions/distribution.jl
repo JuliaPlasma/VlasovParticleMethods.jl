@@ -1,3 +1,2 @@
 
-abstract type DistributionFunction{XD,VD} end
-
+abstract type DistributionFunction{DT,XD,VD} end

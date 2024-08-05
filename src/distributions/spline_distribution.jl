@@ -1,4 +1,4 @@
-struct SplineDistribution{XD, VD, ST, DT, BT, MT, FT} <: DistributionFunction{XD,VD}
+struct SplineDistribution{DT, XD, VD, ST, BT, MT, FT} <: DistributionFunction{DT,XD,VD}
     spline::ST
     # spline::Spline{DT, BT, Vector{DT}}
     basis::BT
@@ -18,16 +18,18 @@ struct SplineDistribution{XD, VD, ST, DT, BT, MT, FT} <: DistributionFunction{XD
         end
         # mass_fact = lu(mass_matrix)
         mass_fact = cholesky(mass_matrix)
-        new{xdim, vdim, typeof(spline), DT, typeof(basis), typeof(mass_matrix), typeof(mass_fact)}(spline, basis, _coefficients, mass_matrix, mass_fact)
+        new{DT, xdim, vdim, typeof(spline), typeof(basis), typeof(mass_matrix), typeof(mass_fact)}(spline, basis, _coefficients, mass_matrix, mass_fact)
     end
 end
 
+Base.eltype(::SplineDistribution{DT}) where {DT} = DT
 Base.length(dist::SplineDistribution) = length(dist.coefficients)
-Base.eltype(::SplineDistribution{XD, VD, ST, DT, BT, MT, FT}) where {XD, VD, ST, DT, BT, MT, FT} = DT
 
-Cache(AT, s::SplineDistribution{XD, VD, ST, DT, BT, MT, FT}) where {XD, VD, ST, DT, BT, MT, FT} = SplineDistribution(XD, VD, s.basis, zeros(AT, axes(s.coefficients)), s.mass_matrix)
-CacheType(AT, ::SplineDistribution{XD, VD, TwoDSpline{DT, BT, BT2}, DT, BT, MT, FT}) where {XD, VD, DT, BT, MT, FT, BT2} = SplineDistribution{XD, VD, TwoDSpline{AT, BT, BT2}, AT, BT, MT, FT}
-CacheType(AT, ::SplineDistribution{XD, VD, Spline{DT, BT, Vector{DT}}, DT, BT, MT, FT}) where {XD, VD, DT, BT, MT, FT} = SplineDistribution{XD, VD, Spline{AT, BT, Vector{AT}}, AT, BT, MT, FT}
+Base.similar(AT, s::SplineDistribution{DT,XD,VD}) where {DT,XD,VD} =
+    SplineDistribution(XD, VD, s.basis, zeros(AT, axes(s.coefficients)), s.mass_matrix)
+
+similar_type(AT, ::SplineDistribution{DT, XD, VD, TwoDSpline{DT, BT, BT2}, BT, MT, FT}) where {DT, XD, VD, BT, MT, FT, BT2} = SplineDistribution{AT, XD, VD, TwoDSpline{AT, BT, BT2}, BT, MT, FT}
+similar_type(AT, ::SplineDistribution{DT, XD, VD, Spline{DT, BT, Vector{DT}}, BT, MT, FT}) where {DT, XD, VD, BT, MT, FT} = SplineDistribution{AT, XD, VD, Spline{AT, BT, Vector{AT}}, BT, MT, FT}
 
 
 function SplineDistribution(xdim, vdim, nknots::KT, s_order::OT, domain::Tuple, length_big_cell, bc::Symbol=:Dirichlet, compute_mass_galerkin::Bool=true) where {KT, OT}
@@ -58,17 +60,19 @@ function SplineDistribution(xdim, vdim, nknots::KT, s_order::OT, domain::Tuple, 
         mass_1d = compute_mass_matrix(basis, extended_knots)
     end
 
+    coefficients = zeros(length(basis)^vdim)
+
     if vdim == 1
-        coefficients = zeros(length(basis))
         mass_matrix = mass_1d
     elseif vdim == 2
-        coefficients = zeros(length(basis)^2)
         mass_matrix = kron(mass_1d, mass_1d)
-
     end
+
     return SplineDistribution(xdim, vdim, basis, coefficients, mass_matrix)
 end
 
+# TODO: Move to spline subdir. This is not distribution function specific functionality.
+# TODO: Make quadrature rule an argument.
 function compute_mass_matrix(basis, knots)
     M = zeros(length(basis), length(basis))
     for k in CartesianIndices(M)
@@ -81,27 +85,4 @@ function compute_mass_matrix(basis, knots)
     end  
     
     return M
-end
-
-
-_cachehash(ST) = hash(Threads.threadid(), hash(ST))
-
-struct SplineDistributionCache{disttype}
-    s::disttype
-    caches::Dict{UInt64, SplineDistribution}
-
-    function SplineDistributionCache(s::SplineDistribution)
-        caches = Dict{UInt64, SplineDistribution}()
-        caches[_cachehash(eltype(s))] = s
-        new{typeof(s)}(s, caches)
-    end
-end
-
-@inline function Base.getindex(c::SplineDistributionCache, ST::DataType)
-    key = _cachehash(ST)
-    if haskey(c.caches, key)
-        c.caches[key]
-    else
-        c.caches[key] = Cache(ST, c.s)
-    end::CacheType(ST, c.s)
 end

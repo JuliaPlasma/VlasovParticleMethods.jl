@@ -57,11 +57,11 @@ function Picard_iterate_over_particles(f::Function, dist, sdist, tol, Δt)
     return v_new
 end
 
-function f!(dv::AbstractArray{T}, v_nplus1::AbstractArray{T}, v_n, params, Δt) where T
+function f!(dv::AbstractArray{T}, v_nplus1::AbstractArray{T}, v_n, params, Δt, landau) where T
     v_midpoint = (v_nplus1 .+ v_n) ./ 2
 
     # rhs = copy(v_n)
-    @time Landau_rhs_2!(dv, v_midpoint, params)
+    @time collisions_rhs!(dv, v_midpoint, params, landau)
 
     explicit_update!(view(dv, 1, :), view(v_n, 1, :), Δt)
     explicit_update!(view(dv, 2, :), view(v_n, 2, :), Δt)
@@ -89,12 +89,15 @@ end
 # end
 
 
-function Picard_iterate_Landau_nls!(dist, ent, tol, ftol, β, Δt, ti, t, v_prev, v_prev_2, rhs_prev, m, n, chunksize)
+function Picard_iterate_Landau_nls!(landau, tol, ftol, β, Δt, ti, t, v_prev, v_prev_2, rhs_prev, m, n, chunksize)
     # β is the damping parameter for damped Picard iterations, with β = 1 yielding regular Picard iterations
     # ti is the time index at which v_new is being computed, i.e. for t = ti * Δt
     # v_prev is v at the previous timestep 
     # v_prev_2 is v at two timesteps prior to t
     # rhs_prev[:,:,1] is the rhs at t - Δt, and rhs_prev[:,:,2] is the rhs at t - 2Δt
+
+    dist = landau.dist
+    ent = landau.entropy
     
     # creating this to store the guess for the moment, for diagnostic purposes
     v_guess = copy(dist.particles.v) 
@@ -106,9 +109,7 @@ function Picard_iterate_Landau_nls!(dist, ent, tol, ftol, β, Δt, ti, t, v_prev
         Extrapolators.extrapolate!(t - 2Δt, v_prev_2, view(rhs_prev, :, :, 2), t - Δt, v_prev, view(rhs_prev, :, :, 1), t, v_guess, Extrapolators.HermiteExtrapolation())
     end
 
-    rhs_prev[:,:,2] .= rhs_prev[:,:,1]
-
-    g!(dv, v, p) = f!(dv, v, v_prev, params, Δt) 
+    g!(dv, v, p) = f!(dv, v, v_prev, params, Δt, landau)
     # @show g(v_guess, params)
     # g!(F, v) = f!(F, v, v_prev, rhs_prev[:,:,1], params, Δt) 
 
@@ -134,7 +135,8 @@ function Picard_iterate_Landau_nls!(dist, ent, tol, ftol, β, Δt, ti, t, v_prev
 
     # update rhs storage
     # rhs_prev[:,:,1] .= Landau_rhs_2!(view(rhs_prev, :, :, 1), dist.particles.v, params)
-    Landau_rhs_2!(view(rhs_prev, :, :, 1), dist.particles.v, params)
+    rhs_prev[:,:,2] .= rhs_prev[:,:,1]
+    collisions_rhs!(view(rhs_prev, :, :, 1), dist.particles.v, params)
 
     # return solution at t
     return sol

@@ -9,8 +9,11 @@ using SciMLBase
 
 # using ProfileView
 # using Cthulhu
+using Profile
+
 
 # parameters
+# npart = 200   # number of particles
 npart = 2000  # number of particles
 nknot = 4     # number of grid points in one direction (in the interior)
 order = 2      # spline order
@@ -18,7 +21,7 @@ tstep = 1e-3    # time step size
 tspan = (0.0, 1.)     # integration time interval
 domainv = (-1.75, 1.75) # size of interior domain (i.e. excluding outer "big" cell on either side)
 length_big_cell = 6. # set this to 0 to not construct a grid with a large cell on either side
-
+ν = 1.0  # collision frequency
 
 filename = "tstep=1e-4_bc=4_particlebounds_tests_normal"
 
@@ -40,7 +43,11 @@ trange = (tspan[1] - tstep):tstep:tspan[2]
 
 S = projection(dist.particles.v, dist, sdist)
 
-params = (dist = dist, sdist2 = sdist2, ent = entropy, n = 2)
+landau = Landau(dist, entropy; ν = ν)
+
+const landau_rhs!(v̇, v, params) = VlasovMethods.collisions_rhs!(v̇, v, params, landau)
+
+params = (sdist2 = sdist2, n = 2)
 rhs = zero(dist.particles.v)
 
 # J = VlasovMethods.compute_J_gl(sdist, 2)
@@ -50,7 +57,7 @@ v_full = zeros(2, npart, length(trange))
 v_full[:,:,2] .= dist.particles.v
 
 rhs_full = zeros(2, npart, length(trange))
-rhs_full[:,:,2] = VlasovMethods.Landau_rhs_2!(rhs_full[:,:,2], dist.particles.v, params)
+rhs_full[:,:,2] = landau_rhs!(rhs_full[:,:,2], dist.particles.v, params)
 
 
 rhs_prev = zeros(2, npart, 2)
@@ -62,10 +69,27 @@ max_iters = 15 # max number of Picard iterations
 m = 2 # depth for anderson acceleration
 n = 2
 chunksize = 100
+
+
+### Run profiler
+
+# i = 3
+# t = trange[i]
+
+# VlasovMethods.Picard_iterate_Landau_nls!(landau, tol, ftol, β, tstep, i+2, t, v_full[:,:,i+1], v_full[:,:,i], rhs_prev, m, n, chunksize)
+
+# Profile.clear()
+# Profile.clear_malloc_data()
+
+# Profile.Allocs.@profile VlasovMethods.Picard_iterate_Landau_nls!(landau, tol, ftol, β, tstep, i+2, t, v_full[:,:,i+1], v_full[:,:,i], rhs_prev, m, n, chunksize)
+
+
+### Run actual code
+
 @time for (i,t) in pairs(trange[3:end])
     println("i=",i, " t =",t)
     # v_full[:,:,i+2] = VlasovMethods.Picard_iterate_Landau!(dist, sdist, tol, β, tstep, i+2, t, v_full[:,:,i], rhs_prev, sdist2, max_iters, m )
-    sol = VlasovMethods.Picard_iterate_Landau_nls!(dist, entropy, tol, ftol, β, tstep, i+2, t, v_full[:,:,i+1], v_full[:,:,i], rhs_prev, m, n, chunksize)
+    sol = VlasovMethods.Picard_iterate_Landau_nls!(landau, tol, ftol, β, tstep, i+2, t, v_full[:,:,i+1], v_full[:,:,i], rhs_prev, m, n, chunksize)
     v_full[:,:,i+2] .= dist.particles.v
     rhs_full[:,:,i+2] .= rhs_prev[:,:,1]
     if !SciMLBase.successful_retcode(sol.retcode)

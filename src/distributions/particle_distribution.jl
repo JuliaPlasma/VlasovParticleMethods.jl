@@ -1,9 +1,8 @@
-
-struct ParticleDistribution{XD, VD, PT} <: DistributionFunction{XD,VD}
+struct ParticleDistribution{DT, XD, VD, PT <: ParticleList{DT}} <: DistributionFunction{DT,XD,VD}
     particles::PT
     
     function ParticleDistribution(xdim, vdim, particles::PT) where {PT <: ParticleList}
-        new{xdim, vdim, PT}(particles)
+        new{eltype(particles), xdim, vdim, PT}(particles)
     end
 end
 
@@ -19,10 +18,11 @@ function ParticleDistribution(xdim, vdim, npart::Int; kwargs...)
     ParticleDistribution(xdim, vdim, list)
 end
 
+Base.eltype(::ParticleDistribution{T}) where {T} = T
 Base.size(dist::ParticleDistribution) = size(dist.particles)
-xdim(::ParticleDistribution{XD,VD}) where {XD,VD} = XD
-vdim(::ParticleDistribution{XD,VD}) where {XD,VD} = VD
 
+xdim(::ParticleDistribution{T,XD,VD}) where {T,XD,VD} = XD
+vdim(::ParticleDistribution{T,XD,VD}) where {T,XD,VD} = VD
 
 
 

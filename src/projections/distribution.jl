@@ -32,7 +32,7 @@ Updates final_dist with projected Spline and coefficients.
 # end
 
 
-function projection(velocities::AbstractVector{VT}, dist::ParticleDistribution{1,1}, final_dist::SplineDistribution{1,1}) where {VT}
+function projection(velocities::AbstractVector{VT}, dist::ParticleDistribution{PT,1,1}, final_dist::SplineDistribution{ST,1,1}) where {VT,PT,ST}
     rhs = zeros(VT, size(final_dist))
 
     # projection of delta functions to splines of @jipolanco 
@@ -97,7 +97,7 @@ end
 #     return final_dist.spline
 # end
 
-function project_Maxwellian(sdist::SplineDistribution{1,2})
+function project_Maxwellian(sdist::SplineDistribution{T,1,2}) where {T}
     B = sdist.basis
     M = length(B)
     rhs = zeros(M^2)
@@ -121,7 +121,7 @@ function project_Maxwellian(sdist::SplineDistribution{1,2})
 end
 
 
-function projection(velocities::AbstractMatrix{VT}, dist::ParticleDistribution{1,2}, final_dist::SplineDistribution{1,2}) where {VT}
+function projection(velocities::AbstractMatrix{VT}, dist::ParticleDistribution{PT,1,2}, final_dist::SplineDistribution{ST,1,2}) where {VT,PT,ST}
     rhs = zeros(VT, length(final_dist))
     M = length(final_dist.basis)
     d_start = BSplineKit.knots(final_dist.basis)[1]

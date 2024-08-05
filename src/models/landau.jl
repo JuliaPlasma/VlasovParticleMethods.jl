@@ -1,24 +1,57 @@
-struct Landau{XD, VD, DT <: DistributionFunction{XD,VD}, ET <: Entropy, T} <: VlasovModel
-    dist::DT    # distribution function
-    ent::ET     # entropy 
-    ν::T        # collision frequency 
-    
-    function Landau(dist::DistributionFunction{XD,VD}, ent::Entropy; ν::T=1.) where {XD, VD, T}
-        new{XD, VD, typeof(dist), typeof(ent), T}(dist, ent, ν)
+struct LandauCache{T, PT <: ParticleDistribution, ST <: SplineDistribution{T}} <: Cache{T}
+    pdist::PT
+    sdist::ST
+
+    J::Vector{T}
+    L::Matrix{T}
+    LJ::Vector{T}
+    K1::Matrix{T}
+    K2::Matrix{T}
+
+    function LandauCache{T}(pdist, sdist) where {T}
+        M = length(sdist)
+        N = size(pdist.particles.v, 2)
+
+        J = zeros(T, M)
+        L = zeros(T, (M,M))
+        LJ = zeros(T, M)
+        K1 = zeros(T, (M,N))
+        K2 = zeros(T, (M,N))
+        
+        new{T, typeof(pdist), typeof(sdist)}(pdist, sdist, J, L, LJ, K1, K2)
     end
 end
 
-function integrand_J(v::AbstractArray{T}, B, i, j, sdist) where T
-    return B[i, T](v[1]) * B[j, T](v[2]) * (one(T) + log(sdist.spline(v)))
+LandauCache(pdist::ParticleDistribution{T}, sdist::SplineDistribution{T}) where {T} = LandauCache{T}(pdist, sdist)
+
+Cache(AT, c::LandauCache{DT, PT, ST}) where {DT, PT, ST} = LandauCache{AT}(c.pdist, similar(AT, c.sdist))
+CacheType(AT, c::LandauCache{DT, PT, ST}) where {DT, PT, ST} = LandauCache{AT, PT, similar_type(AT, c.sdist)}
+
+
+struct Landau{D, XD, VD, DT <: DistributionFunction{XD,VD}, ET <: Entropy, CT <: CacheDict} <: VlasovModel
+    dist::DT    # distribution function
+    entropy::ET # entropy
+    ν::D        # collision frequency
+
+    cache::CT
+    
+    function Landau(dist::DistributionFunction{XD,VD}, ent::Entropy; ν::D = 1.) where {D, XD, VD}
+        cache = CacheDict(LandauCache(dist, ent.dist))
+        new{D, XD, VD, typeof(dist), typeof(ent), typeof(cache)}(dist, ent, ν, cache)
+    end
+end
+
+Cache(AT, l::Landau) = LandauCache{AT}(l.pdist, similar(AT, l.sdist))
+CacheType(AT, l::Landau) = LandauCache{AT, typeof(l.pdist), similar_type(AT, l.sdist)}
+
+
+
+function integrand_J(v::AbstractArray{T}, B, i, j, sdist::SplineDistribution) where T
+    B[i, T](v[1]) * B[j, T](v[2]) * (one(T) + log(sdist.spline(v)))
 end
 
 function integrand_J(v::AbstractArray{T}, params) where T
-    # if params.sdist.spline(v) > eps(T)
-        # return (params.B[params.i, T](v[1]) * params.B[params.j, T](v[2]) * (1. + log(f_Maxwellian(v))))::T
-    return params.B[params.i, T](v[1]) * params.B[params.j, T](v[2]) * (one(T) + log(params.sdist.spline(v)))
-    # else
-    #     return zero(T)
-    # end
+    integrand_J(v, params.B, params.i, params.j, params.sdist)
 end
 
 # function compute_J(sdist::SplineDistribution{1,2})
@@ -41,66 +74,20 @@ end
 #     return int
 # end
 
-function compute_J_gl(sdist::SplineDistribution{1,2}, n)
-    T = eltype(sdist)
-    int = zeros(T, length(sdist))
-
+function compute_J!(J, sdist::SplineDistribution{T,1,2}, n, ::Landau) where {T}
     Threads.@threads for k in 1:length(sdist)
         i, j = ij_from_k(k, length(sdist.basis))
         params = (sdist = sdist, B = sdist.basis, i = i, j = j)
-        int[k] = gauss_quad_2d(integrand_J, sdist.basis, n, params)
+        J[k] = gauss_quad_2d(integrand_J, sdist.basis, n, params)
     end
 
-    ldiv!(sdist.mass_fact, int)
+    ldiv!(sdist.mass_fact, J)
 
-    return int
+    return J
 end
 
-# function compute_U(v_α::AbstractVector{T}, v_β::AbstractVector{T}) where {T}
-#     n = length(v_α)
-#     U = zeros(T, (n,n))
 
-#     norm_diff = euclidean(v_α, v_β)
-
-#     if v_α != v_β
-#         for i in CartesianIndices(U)
-#             if i[1] == i[2]
-#                 U[i] += 1 / norm_diff
-#             end
-#             U[i] -= (v_α[i[1]] - v_β[i[1]]) * (v_α[i[2]] - v_β[i[2]]) / norm_diff^3
-#         end
-#     end
-
-#     return U
-# end
-
-
-function compute_U!(U, v_α, v_β)
-    norm_diff = euclidean(v_α, v_β)
-
-    U .= 0
-
-    if v_α != v_β
-        for i in axes(U,1)
-            for j in axes(U,2)
-                if i == j
-                    U[i,j] += 1 / norm_diff
-                end
-                U[i,j] -= (v_α[i] - v_β[i]) * (v_α[j] - v_β[j]) / norm_diff^3
-            end
-        end
-    end
-
-    return U
-end
-
-# function compute_U(v_α, v_β)
-#     n = length(v_α)
-#     U = zeros(eltype(v_α), (n,n))
-#     compute_U!(U, v_α, v_β)
-# end
-
-function compute_U(v_α::AbstractVector{T}, v_β::AbstractVector{T}) where {T}
+function kernel(v_α::AbstractVector{T}, v_β::AbstractVector{T}, ::Landau) where {T}
     norm_diff = euclidean(v_α, v_β)
 
     if v_α != v_β
@@ -153,17 +140,13 @@ end
 # end
 
 
-function compute_K(v_array::AbstractArray{T}, dist, sdist) where {T}
-    M = length(sdist)
-    K1 = zeros(T, (M, size(v_array,2)))
-    K2 = zeros(T, (M, size(v_array,2)))
-
+function compute_K!(K1, K2, v_array::AbstractArray{T}, sdist, landau::Landau) where {T}
     Threads.@threads for α in axes(v_array, 2)
         klist, der_array = evaluate_der_2d(sdist.basis, v_array[:,α])
         for (i, k) in pairs(klist)
-            if k > 0 && k <= M
-                K1[k,α] = dist.particles.w[1,α] * der_array[1,i]
-                K2[k,α] = dist.particles.w[1,α] * der_array[2,i]
+            if k > 0 && k <= length(sdist)
+                K1[k,α] = landau.dist.particles.w[1,α] * der_array[1,i]
+                K2[k,α] = landau.dist.particles.w[1,α] * der_array[2,i]
             end
         end
     end
@@ -171,17 +154,17 @@ function compute_K(v_array::AbstractArray{T}, dist, sdist) where {T}
     return K1, K2
 end
 
-function compute_K_plus(v_array::AbstractArray{T}, dist, sdist) where {T}
-    K1, K2 = compute_K(v_array, dist, sdist)
+# function compute_K_plus(v_array::AbstractArray{T}, dist, sdist) where {T}
+#     K1, K2 = compute_K(v_array, dist, sdist)
 
-    if rank(K1) < length(sdist) || rank(K2) < length(sdist)
-        println("K1 or K2 not full rank")
-        @show size(K1,1) - rank(K1)
-        @show size(K2,1) - rank(K2)
-    end
+#     if rank(K1) < length(sdist) || rank(K2) < length(sdist)
+#         println("K1 or K2 not full rank")
+#         @show size(K1,1) - rank(K1)
+#         @show size(K2,1) - rank(K2)
+#     end
 
-    return pinv(K1), pinv(K2)
-end
+#     return pinv(K1), pinv(K2)
+# end
 
 # function L_integrand_vec(v::AbstractVector{T}, params) where T
 #     v1 = [v[1], v[2]]
@@ -247,29 +230,26 @@ end
 # end
 
 
-function L_integrand_gh(v1::AbstractVector{T}, v2::AbstractVector{T}, sdist, i, j) where T
+function L_integrand(v1::AbstractVector{T}, v2::AbstractVector{T}, sdist, i, j, landau::Landau) where T
     basis_derivative1 = eval_bfd(sdist.basis, i, v1) - eval_bfd(sdist.basis, i, v2)
     basis_derivative2 = eval_bfd(sdist.basis, j, v1) - eval_bfd(sdist.basis, j, v2)
 
-    sdist.spline(v1) * dot(basis_derivative1, compute_U(v1, v2) * basis_derivative2) * sdist.spline(v2)
+    sdist.spline(v1) * dot(basis_derivative1, kernel(v1, v2, landau) * basis_derivative2) * sdist.spline(v2)
 end
 
-function L_integrand_gh(v1::AbstractVector{T}, v2::AbstractVector{T}, params) where T
+function L_integrand(v1::AbstractVector{T}, v2::AbstractVector{T}, params, landau::Landau) where T
     id_list_1 = evaluate_der_2d_indices(params.sdist.basis, v1)
     id_list_2 = evaluate_der_2d_indices(params.sdist.basis, v2)
     
-    if (params.k[1] in id_list_1 || params.k[1] in id_list_2) && (params.k[2] in id_list_1 || params.k[2] in id_list_2)
-        L_integrand_gh(v1, v2, params.sdist, params.k[1], params.k[2])
-    else
-        return zero(T)
+    for i in eachindex(params.k)
+        (params.k[i] in id_list_1 || params.k[i] in id_list_2) || return zero(T)
     end
+
+    L_integrand(v1, v2, params.sdist, params.k[1], params.k[2], landau)
 end
 
-function compute_L_ij_gh(sdist::SplineDistribution{1,2}, n::Int)
-    T = eltype(sdist)
-    L = zeros(T, (length(sdist), length(sdist)))
-    # B = sdist.basis
-    # M = length(B)
+function compute_L!(L, sdist::SplineDistribution{T,1,2}, n::Int, landau::Landau) where {T}
+    integrand = (v1, v2, params) -> L_integrand(v1, v2, params, landau)
 
     Threads.@threads for i in axes(L,1)
         for j in axes(L,2)[i:end]
@@ -280,7 +260,7 @@ function compute_L_ij_gh(sdist::SplineDistribution{1,2}, n::Int)
             # jknots = BSplines.common_support(B[j1], B[j2])
 
             params = (k = (i,j), sdist = sdist)
-            L[i,j] = gauss_quad(L_integrand_gh, sdist.basis, n, params) / 2
+            L[i,j] = gauss_quad(integrand, sdist.basis, n, params) / 2
         end
     end
 
@@ -295,46 +275,40 @@ end
 
 
 # spline-to-spline? version 
-function Landau_rhs_2!(v̇, v::AbstractArray{ST}, params) where {ST}
+function collisions_rhs!(v̇, v::AbstractArray{ST}, params, landau::Landau) where {ST}
+    cache = landau.cache[ST]
 
     # project v onto params.sdist
     # println("sdist")
-    sdist = params.ent.cache[ST]
+    sdist = cache.sdist
+
     # println("projection")
-    S = projection(v, params.dist, sdist)
+    projection(v, landau.dist, sdist)
 
     # compute K matrices 
     # println("compute K")
     # K1_plus, K2_plus = compute_K_plus(v, params.dist, sdist)
-    K1, K2 = compute_K(v, params.dist, sdist)
+    compute_K!(cache.K1, cache.K2, v, sdist, landau)
 
-    if rank(K1) < length(sdist) || rank(K2) < length(sdist)
+    if rank(cache.K1) < length(sdist) || rank(cache.K2) < length(sdist)
         println("K1 or K2 not full rank")
-        @show size(K1,1) - rank(K1)
-        @show size(K2,1) - rank(K2)
+        @show size(cache.K1,1) - rank(cache.K1)
+        @show size(cache.K2,1) - rank(cache.K2)
     end
 
     # compute L_ij matrix
     # println("computing L")
-    # Lij = compute_L_ij(sdist)
-    # Lij = compute_L_ij_new(sdist)
-    Lij = compute_L_ij_gh(sdist, params.n)
+    compute_L!(cache.L, sdist, params.n, landau)
 
     # compute J vector
     # println("computing J")
-    # J = compute_J(sdist)
-    J = compute_J_gl(sdist, params.n)
-    # J = compute_J_gl(sdist, params.sdist2, params.n)
-    # J = compute_J_M(sdist)
+    compute_J!(cache.J, sdist, params.n, landau)
 
     # solve for vector field
-    # v̇[1,:] .= K1_plus * Lij * J  
-    # v̇[2,:] .= K2_plus * Lij * J
-    # v̇[1,:] .= -1 .* (K1_plus * (Lij * J))
-    # v̇[2,:] .= -1 .* (K2_plus * (Lij * J))
+    mul!(cache.LJ, cache.L, cache.J)
 
-    v̇[1,:] .= K1 \ (Lij * J)
-    v̇[2,:] .= K2 \ (Lij * J)
+    v̇[1,:] .= cache.K1 \ cache.LJ
+    v̇[2,:] .= cache.K2 \ cache.LJ
 
     # v̇[1,:] .*= -1
     # v̇[2,:] .*= -1
