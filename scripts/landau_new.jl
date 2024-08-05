@@ -33,7 +33,7 @@ dist = initialize!(ParticleDistribution(1, 2, npart), NormalDistribution())
 # create spline distribution function and entropy 
 sdist = SplineDistribution(1, 2, nknot, order, domainv, length_big_cell, :Periodic, false)
 
-# # second spline dist for diagnostics 
+# second spline dist for diagnostics 
 sdist2 = SplineDistribution(1, 2, nknot, order, domainv, length_big_cell, :Periodic, false)
 
 # construct entropy 

@@ -2,6 +2,8 @@ struct LandauCache{T, PT <: ParticleDistribution, ST <: SplineDistribution{T}} <
     pdist::PT
     sdist::ST
 
+    v::Matrix{T}
+
     J::Vector{T}
     L::Matrix{T}
     LJ::Vector{T}
@@ -12,13 +14,15 @@ struct LandauCache{T, PT <: ParticleDistribution, ST <: SplineDistribution{T}} <
         M = length(sdist)
         N = size(pdist.particles.v, 2)
 
-        J = zeros(T, M)
-        L = zeros(T, (M,M))
+        v = zero(pdist.particles.v)
+
+        J  = zeros(T, M)
+        L  = zeros(T, (M,M))
         LJ = zeros(T, M)
         K1 = zeros(T, (M,N))
         K2 = zeros(T, (M,N))
         
-        new{T, typeof(pdist), typeof(sdist)}(pdist, sdist, J, L, LJ, K1, K2)
+        new{T, typeof(pdist), typeof(sdist)}(pdist, sdist, v, J, L, LJ, K1, K2)
     end
 end
 
@@ -275,7 +279,7 @@ end
 
 
 # spline-to-spline? version 
-function collisions_rhs!(v̇, v::AbstractArray{ST}, params, landau::Landau) where {ST}
+function collisions_rhs!(v̇::AbstractArray{ST}, v::AbstractArray{ST}, params, landau::Landau) where {ST}
     cache = landau.cache[ST]
 
     # project v onto params.sdist

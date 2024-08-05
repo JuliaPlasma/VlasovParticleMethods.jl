@@ -179,36 +179,29 @@ end
 
 
 function evaluate_der_2d_indices(B::AbstractBSplineBasis, v::AbstractVector{T}) where T
-    M = length(B)
+    # performes the following calculation
+    # for δi1 ∈ eachindex(bs1)
+    #     for δi2 ∈ eachindex(bs2)
+    #         i = i1 + 1 - δi1
+    #         j = i2 + 1 - δi2
+    #         k = (j - 1) * length(B) + i
+    #         index_list[count] = k
+    #         count += 1
+    #     end
+    # end
 
     i1, bs1 = evaluate_all(B, v[1])
     i2, bs2 = evaluate_all(B, v[2])
 
-    #derivatives 
-    # i1_der, bs1_der = evaluate_all(B, v[1], Derivative(1))
-    # i2_der, bs2_der = evaluate_all(B, v[2], Derivative(1))
+    i = i1 .+ 1 .- SVector{length(bs1)}(eachindex(bs1))
+    j = i2 .+ 1 .- SVector{length(bs2)}(eachindex(bs2))
 
-    index_list = zeros(Int, length(bs1) * length(bs2))
-    # result = zeros(T,(2,length(bs1) * length(bs2)))
+    i_ones = @SVector ones(Int, length(i))
+    j_ones = @SVector ones(Int, length(j))
 
-    count = 1 #TODO: should make this indexing cleaner
-    for (δi, bi) ∈ pairs(bs1)
-        for (δi2, b2) ∈ pairs(bs2)
+    index_list = (i_ones * j' .- 1) .* length(B) .+ i * j_ones'
 
-            i = i1 + 1 - δi
-            j = i2 + 1 - δi2
-            k = (j - 1)*M + i
-
-            index_list[count] = Int(k)
-
-            # result[1, count] = bs1_der[δi] * b2
-            # result[2, count] = bi * bs2_der[δi2]
-
-            count += 1
-        end
-    end
-
-    return index_list
+    return vec(index_list)
 end
 
 

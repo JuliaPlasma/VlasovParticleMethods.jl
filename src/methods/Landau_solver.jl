@@ -20,9 +20,9 @@ function IM_update!(y_new, y_new_guess, yₙ, f, Δt, params)
     return y_new
 end
 
-function explicit_update!(rhs, v, Δt)
-    @. rhs = v + Δt * rhs
-end
+# function explicit_update!(rhs, v, Δt)
+#     @. rhs = v + Δt * rhs
+# end
 
 function Picard_iterate_over_particles(f::Function, dist, sdist, tol, Δt)
     # j is the Picard iteration index
@@ -57,16 +57,16 @@ function Picard_iterate_over_particles(f::Function, dist, sdist, tol, Δt)
     return v_new
 end
 
-function f!(dv::AbstractArray{T}, v_nplus1::AbstractArray{T}, v_n, params, Δt, landau) where T
-    v_midpoint = (v_nplus1 .+ v_n) ./ 2
+function f!(f::AbstractArray{T}, vn::AbstractArray{T}, vp, params, Δt, landau) where T
+    v_midpoint  = landau.cache[T].v
+    v_midpoint .= (vn .+ vp) ./ 2
 
-    # rhs = copy(v_n)
-    @time collisions_rhs!(dv, v_midpoint, params, landau)
+    @time collisions_rhs!(f, v_midpoint, params, landau)
 
-    explicit_update!(view(dv, 1, :), view(v_n, 1, :), Δt)
-    explicit_update!(view(dv, 2, :), view(v_n, 2, :), Δt)
+    f .*= Δt
+    f .-= (vn .- vp)
 
-    dv .-= v_nplus1
+    return nothing
 end
 
 # function f(dv, v_nplus1::AbstractArray{T}, v_n, params, Δt) where T
@@ -100,31 +100,32 @@ function Picard_iterate_Landau_nls!(landau, tol, ftol, β, Δt, ti, t, v_prev, v
     ent = landau.entropy
     
     # creating this to store the guess for the moment, for diagnostic purposes
-    v_guess = copy(dist.particles.v) 
+    v_guess = copy(dist.particles.v)
     
     params = (dist = dist, ent = ent, n = n)
     
     # use Hermite extrapolation to get an initial guess
-    if ti ≥ 4
-        Extrapolators.extrapolate!(t - 2Δt, v_prev_2, view(rhs_prev, :, :, 2), t - Δt, v_prev, view(rhs_prev, :, :, 1), t, v_guess, Extrapolators.HermiteExtrapolation())
-    end
+    # if ti ≥ 4
+    #     Extrapolators.extrapolate!(t - 2Δt, v_prev_2, view(rhs_prev, :, :, 2), t - Δt, v_prev, view(rhs_prev, :, :, 1), t, v_guess, Extrapolators.HermiteExtrapolation())
+    # end
 
-    g!(dv, v, p) = f!(dv, v, v_prev, params, Δt, landau)
-    # @show g(v_guess, params)
-    # g!(F, v) = f!(F, v, v_prev, rhs_prev[:,:,1], params, Δt) 
+    # problemGNI = ODEProblem((v̇,v,params) -> collisions_rhs!(v̇,v,params,landau), (t, t+Δt), Δt, v_prev)
 
-    probN = NonlinearProblem{true}(g!, v_guess)
+    # Extrapolators.extrapolate!(t - Δt, v_prev, t, v_guess, problemGNI, Extrapolators.MidpointExtrapolation(4))
+
+
+    probN = NonlinearProblem{true}((f, v, p) -> f!(f, v, v_prev, params, Δt, landau), v_guess)
 
     println("nlsolve")
     # NonlinearSolve.jl using NewtonRaphson
-    @time sol = NonlinearSolve.solve(probN, 
-    NewtonRaphson(linsolve = AppleAccelerateLUFactorization(), autodiff = AutoForwardDiff(; chunksize = chunksize)); 
-    reltol = 5e-3, show_trace=Val(true), trace_level = TraceWithJacobianConditionNumber())
-   
-    # NonlinearSolve.jl using Picard w/ anderson acceleration
     # @time sol = NonlinearSolve.solve(probN, 
-    #     NonlinearSolve.NLsolveJL(; method=:anderson, m = m, beta = β); 
-    #     reltol = 5e-3, show_trace=Val(true))
+    #     NewtonRaphson(linsolve = AppleAccelerateLUFactorization(), autodiff = AutoForwardDiff(; chunksize = chunksize)); 
+    #     reltol = 5e-3, show_trace=Val(true), trace_level = TraceWithJacobianConditionNumber())
+    
+    # NonlinearSolve.jl using Picard w/ anderson acceleration
+    @time sol = NonlinearSolve.solve(probN, 
+        NonlinearSolve.NLsolveJL(; method=:anderson, m = m, beta = β); 
+        reltol = 5e-3, show_trace=Val(true))
 
     # @time sol = nlsolve(g!, v_guess, method=:anderson, iterations = max_iters, m = m, beta = β, xtol = tol, ftol = ftol, show_trace = true)
 

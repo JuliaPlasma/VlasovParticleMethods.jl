@@ -158,6 +158,7 @@ function projection(velocities::AbstractMatrix{VT}, dist::ParticleDistribution{P
 
     return final_dist.spline
 end
+
 # TODO 
 function projection!(init_dist::SplineDistribution, final_dist::ParticleDistribution)
 
