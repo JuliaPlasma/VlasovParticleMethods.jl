@@ -183,11 +183,6 @@ function compute_K_plus(v_array::AbstractArray{T}, dist, sdist) where {T}
     return pinv(K1), pinv(K2)
 end
 
-function f_Maxwellian(v)
-    return 1/(2π) * exp(- dot(v,v) / 2 )
-end
-
-
 # function L_integrand_vec(v::AbstractVector{T}, params) where T
 #     v1 = [v[1], v[2]]
 #     v2 = [v[3], v[4]]

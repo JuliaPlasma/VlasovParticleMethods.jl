@@ -108,7 +108,7 @@ function project_Maxwellian(sdist::SplineDistribution{1,2})
 
     for k in eachindex(rhs)
         i, j = ij_from_k(k, M)
-        int(v, p) = B[i](v[1]) * B[j](v[2]) * f_Maxwellian(v)
+        int(v, p) = B[i](v[1]) * B[j](v[2]) * MaxwellianDistribution(v)
         prob = IntegralProblem(int, domain)
         sol = Integrals.solve(prob, HCubatureJL(); abstol = 1e-10, reltol = 1e-14)
         # b_j[i], err = quadgk(x -> sdist.basis[i](x)*f_m(x), -10., 10., atol=1e-14, rtol=1e-14)

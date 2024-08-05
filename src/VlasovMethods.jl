@@ -56,6 +56,7 @@ export evaluate, evaluate_first_derivative
 
 # distribution functions
 
+include("distributions/maxwellian.jl")
 include("distributions/particle_distribution.jl")
 include("distributions/spline_distribution.jl")
 
