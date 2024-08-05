@@ -313,5 +313,6 @@ function collisions_rhs!(v̇, v::AbstractArray{ST}, params, landau::Landau) wher
     # v̇[1,:] .*= -1
     # v̇[2,:] .*= -1
 
-    return v̇
+    # return v̇
+    return nothing
 end

@@ -136,7 +136,7 @@ function Picard_iterate_Landau_nls!(landau, tol, ftol, β, Δt, ti, t, v_prev, v
     # update rhs storage
     # rhs_prev[:,:,1] .= Landau_rhs_2!(view(rhs_prev, :, :, 1), dist.particles.v, params)
     rhs_prev[:,:,2] .= rhs_prev[:,:,1]
-    collisions_rhs!(view(rhs_prev, :, :, 1), dist.particles.v, params)
+    collisions_rhs!(view(rhs_prev, :, :, 1), dist.particles.v, params, landau)
 
     # return solution at t
     return sol

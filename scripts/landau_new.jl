@@ -57,7 +57,7 @@ v_full = zeros(2, npart, length(trange))
 v_full[:,:,2] .= dist.particles.v
 
 rhs_full = zeros(2, npart, length(trange))
-rhs_full[:,:,2] = landau_rhs!(rhs_full[:,:,2], dist.particles.v, params)
+landau_rhs!(rhs_full[:,:,2], dist.particles.v, params)
 
 
 rhs_prev = zeros(2, npart, 2)
