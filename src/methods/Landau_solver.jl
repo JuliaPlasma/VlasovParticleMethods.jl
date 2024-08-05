@@ -41,7 +41,7 @@ function Picard_iterate_over_particles(f::Function, dist, sdist, tol, Δt)
 
         params = (dist = dist, sdist = sdist, B = sdist.basis, L = L, v_array = v_prev)
 
-        @time Threads.@threads for i in axes(v_prev,2)
+        @time for i in axes(v_prev,2)
         # @time for i in axes(v_prev,2)
             # @show i
             IM_update!(view(v_new, :, i), view(v_prev, :, i), view(dist.particles.v, :, i), f, Δt, params)

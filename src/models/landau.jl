@@ -75,7 +75,7 @@ end
 # end
 
 function compute_J!(J, sdist::SplineDistribution{T,1,2}, n, ::Landau) where {T}
-    Threads.@threads for k in 1:length(sdist)
+    for k in 1:length(sdist)
         i, j = ij_from_k(k, length(sdist.basis))
         params = (sdist = sdist, B = sdist.basis, i = i, j = j)
         J[k] = gauss_quad_2d(integrand_J, sdist.basis, n, params)
@@ -141,7 +141,7 @@ end
 
 
 function compute_K!(K1, K2, v_array::AbstractArray{T}, sdist, landau::Landau) where {T}
-    Threads.@threads for α in axes(v_array, 2)
+    for α in axes(v_array, 2)
         klist, der_array = evaluate_der_2d(sdist.basis, v_array[:,α])
         for (i, k) in pairs(klist)
             if k > 0 && k <= length(sdist)
@@ -251,7 +251,7 @@ end
 function compute_L!(L, sdist::SplineDistribution{T,1,2}, n::Int, landau::Landau) where {T}
     integrand = (v1, v2, params) -> L_integrand(v1, v2, params, landau)
 
-    Threads.@threads for i in axes(L,1)
+    for i in axes(L,1)
         for j in axes(L,2)[i:end]
             # i1, j1 = ij_from_k(i, M)
             # i2, j2 = ij_from_k(j, M)
