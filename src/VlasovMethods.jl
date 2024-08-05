@@ -33,6 +33,12 @@ import GeometricEquations: ntime
 import GeometricIntegrators.Integrators
 import GeometricIntegrators.Extrapolators
 
+
+# utilities
+
+include("cache.jl")
+
+
 # abstract types
 
 include("distributions/distribution.jl")
