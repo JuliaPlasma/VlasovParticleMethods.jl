@@ -23,13 +23,13 @@ end
 
 # function compute_J(sdist::SplineDistribution{1,2})
 #     T = eltype(sdist)
-#     int = zeros(T, size(sdist))
+#     int = zeros(T, length(sdist))
 #     B = sdist.basis
 #     d_start = T(BSplineKit.knots(B)[1])
 #     d_end = T(BSplineKit.knots(B)[end])
 #     domain = ([d_start, d_start], [d_end, d_end])
 
-#     for k in 1:size(sdist)
+#     for k in 1:length(sdist)
 #         i, j = ij_from_k(k, length(B))
 #         integrand(v) = integrand_J(v, B, i, j, sdist)
 #         # integand(v) = B[i, T](v[1]) * B[j, T](v[2]) * (1. + log(abs(sdist.spline(v))))
@@ -43,9 +43,9 @@ end
 
 function compute_J_gl(sdist::SplineDistribution{1,2}, n)
     T = eltype(sdist)
-    int = zeros(T, size(sdist))
+    int = zeros(T, length(sdist))
 
-    Threads.@threads for k in 1:size(sdist)
+    Threads.@threads for k in 1:length(sdist)
         i, j = ij_from_k(k, length(sdist.basis))
         params = (sdist = sdist, B = sdist.basis, i = i, j = j)
         int[k] = gauss_quad_2d(integrand_J, sdist.basis, n, params)
@@ -154,7 +154,7 @@ end
 
 
 function compute_K(v_array::AbstractArray{T}, dist, sdist) where {T}
-    M = size(sdist)
+    M = length(sdist)
     K1 = zeros(T, (M, size(v_array,2)))
     K2 = zeros(T, (M, size(v_array,2)))
 
@@ -174,7 +174,7 @@ end
 function compute_K_plus(v_array::AbstractArray{T}, dist, sdist) where {T}
     K1, K2 = compute_K(v_array, dist, sdist)
 
-    if rank(K1) < size(sdist) || rank(K2) < size(sdist)
+    if rank(K1) < length(sdist) || rank(K2) < length(sdist)
         println("K1 or K2 not full rank")
         @show size(K1,1) - rank(K1)
         @show size(K2,1) - rank(K2)
@@ -212,7 +212,7 @@ end
 
 # function compute_L_ij(sdist)
 #     T = eltype(sdist)
-#     L = zeros(T, (size(sdist), size(sdist)))
+#     L = zeros(T, (length(sdist), length(sdist)))
 #     B = sdist.basis
 #     M = length(B)
 #     knots = T.(BSplineKit.knots(sdist.basis))
@@ -267,7 +267,7 @@ end
 
 function compute_L_ij_gh(sdist::SplineDistribution{1,2}, n::Int)
     T = eltype(sdist)
-    L = zeros(T, (size(sdist), size(sdist)))
+    L = zeros(T, (length(sdist), length(sdist)))
     # B = sdist.basis
     # M = length(B)
 
@@ -308,7 +308,7 @@ function Landau_rhs_2!(v̇, v::AbstractArray{ST}, params) where {ST}
     # K1_plus, K2_plus = compute_K_plus(v, params.dist, sdist)
     K1, K2 = compute_K(v, params.dist, sdist)
 
-    if rank(K1) < size(sdist) || rank(K2) < size(sdist)
+    if rank(K1) < length(sdist) || rank(K2) < length(sdist)
         println("K1 or K2 not full rank")
         @show size(K1,1) - rank(K1)
         @show size(K2,1) - rank(K2)

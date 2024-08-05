@@ -122,7 +122,7 @@ end
 
 
 function projection(velocities::AbstractMatrix{VT}, dist::ParticleDistribution{1,2}, final_dist::SplineDistribution{1,2}) where {VT}
-    rhs = zeros(VT, size(final_dist))
+    rhs = zeros(VT, length(final_dist))
     M = length(final_dist.basis)
     d_start = BSplineKit.knots(final_dist.basis)[1]
     d_end = BSplineKit.knots(final_dist.basis)[end]

@@ -22,7 +22,7 @@ struct SplineDistribution{XD, VD, ST, DT, BT, MT, FT} <: DistributionFunction{XD
     end
 end
 
-Base.size(dist::SplineDistribution) = length(dist.coefficients)
+Base.length(dist::SplineDistribution) = length(dist.coefficients)
 Base.eltype(::SplineDistribution{XD, VD, ST, DT, BT, MT, FT}) where {XD, VD, ST, DT, BT, MT, FT} = DT
 
 Cache(AT, s::SplineDistribution{XD, VD, ST, DT, BT, MT, FT}) where {XD, VD, ST, DT, BT, MT, FT} = SplineDistribution(XD, VD, s.basis, zeros(AT, axes(s.coefficients)), s.mass_matrix)
