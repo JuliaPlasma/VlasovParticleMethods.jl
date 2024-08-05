@@ -246,13 +246,13 @@ function evaluate_der_2d_indices(B::AbstractBSplineBasis, v1::T, v2::T) where T
 end
 
 
-function compute_shift_scale(i, knots)
+function shift_scale(i, knots)
     # @show 0.5 * (knots[i] + knots[i+1])
     # @show 0.5 * (knots[i + 1] - knots[i])
     return (knots[i] + knots[i+1]) / 2, (knots[i + 1] - knots[i]) / 2
 end
 
-function compute_lin_transform(x::T, shift::T, scale::T) where T
+function linear_transform(x::T, shift::T, scale::T) where T
     return x .* scale .+ shift
 end
 
@@ -267,10 +267,10 @@ function gauss_quad(f::Function, basis::AbstractBSplineBasis, n::Int, params)
     res::T = 0
 
     for i in 1:M, j in 1:M, l in 1:M, m in 1:M
-        shift_i, scale_i = compute_shift_scale(i, knots)
-        shift_j, scale_j = compute_shift_scale(j, knots)
-        shift_l, scale_l = compute_shift_scale(l, knots)
-        shift_m, scale_m = compute_shift_scale(m, knots)
+        shift_i, scale_i = shift_scale(i, knots)
+        shift_j, scale_j = shift_scale(j, knots)
+        shift_l, scale_l = shift_scale(l, knots)
+        shift_m, scale_m = shift_scale(m, knots)
 
         shift_ij = @SVector [shift_i, shift_j]
         shift_lm = @SVector [shift_l, shift_m]
@@ -281,8 +281,8 @@ function gauss_quad(f::Function, basis::AbstractBSplineBasis, n::Int, params)
             x_ij = @SVector [x[i1], x[j1]]
             x_lm = @SVector [x[l1], x[m1]]
     
-            v1 = compute_lin_transform(x_ij, shift_ij, scale_ij)
-            v2 = compute_lin_transform(x_lm, shift_lm, scale_lm)
+            v1 = linear_transform(x_ij, shift_ij, scale_ij)
+            v2 = linear_transform(x_lm, shift_lm, scale_lm)
 
             res += f(v1, v2, params) * w[i1] * w[j1] * w[l1] * w[m1] * scale_i * scale_j * scale_l * scale_m
         end
@@ -302,14 +302,14 @@ function gauss_quad(f::Function, basis::AbstractBSplineBasis, iknots::AbstractRa
     res::T = 0
 
     for i in iknots[1:end-1], j in jknots[1:end-1], l in iknots[1:end-1], m in jknots[1:end-1]
-        shift_i, scale_i = compute_shift_scale(i, knots)
-        shift_j, scale_j = compute_shift_scale(j, knots)
-        shift_l, scale_l = compute_shift_scale(l, knots)
-        shift_m, scale_m = compute_shift_scale(m, knots)
+        shift_i, scale_i = shift_scale(i, knots)
+        shift_j, scale_j = shift_scale(j, knots)
+        shift_l, scale_l = shift_scale(l, knots)
+        shift_m, scale_m = shift_scale(m, knots)
 
         for i1 in 1:n, j1 in 1:n, l1 in 1:n, m1 in 1:n
-            v1 = convert(Array{T}, compute_lin_transform([x[i1], x[j1]], [shift_i, shift_j], [scale_i, scale_j]))
-            v2 = convert(Array{T}, compute_lin_transform([x[l1], x[m1]], [shift_l, shift_m], [scale_l, scale_m]))
+            v1 = convert(Array{T}, linear_transform([x[i1], x[j1]], [shift_i, shift_j], [scale_i, scale_j]))
+            v2 = convert(Array{T}, linear_transform([x[l1], x[m1]], [shift_l, shift_m], [scale_l, scale_m]))
             res += f(v1, v2, params) * w[i1] * w[j1] * w[l1] * w[m1] * scale_i * scale_j * scale_l * scale_m
         end
     end
@@ -329,8 +329,8 @@ function gauss_quad_2d(f::Function, basis::AbstractBSplineBasis, n::Int, params)
     res::T = 0
 
     for i in 1:M, j in 1:M
-        shift_i, scale_i = compute_shift_scale(i, knots)
-        shift_j, scale_j = compute_shift_scale(j, knots)
+        shift_i, scale_i = shift_scale(i, knots)
+        shift_j, scale_j = shift_scale(j, knots)
 
         shift_ij = @SVector [shift_i, shift_j]
         scale_ij = @SVector [scale_i, scale_j]
@@ -338,8 +338,8 @@ function gauss_quad_2d(f::Function, basis::AbstractBSplineBasis, n::Int, params)
         for i1 in 1:n, j1 in 1:n
             x_ij = @SVector [x[i1], x[j1]]
 
-            v1 = compute_lin_transform(x_ij, shift_ij, scale_ij)
-            
+            v1 = linear_transform(x_ij, shift_ij, scale_ij)
+
             res += f(v1, params) * w[i1] * w[j1] * scale_i * scale_j
         end
     end
@@ -360,9 +360,9 @@ function gauss_quad_1d(f::Function, basis::AbstractBSplineBasis, n::Int, params)
     res::T = 0
 
     for i in 1:M
-        shift_i, scale_i = compute_shift_scale(i, knots)
+        shift_i, scale_i = shift_scale(i, knots)
         for i1 in 1:n
-            v1 = convert(Array{T}, compute_lin_transform(x[i1], shift_i, scale_i))
+            v1 = convert(Array{T}, linear_transform(x[i1], shift_i, scale_i))
             res += f(v1, params) * w[i1] * scale_i
         end
     end
