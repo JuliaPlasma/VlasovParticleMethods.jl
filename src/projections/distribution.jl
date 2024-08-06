@@ -124,7 +124,7 @@ end
 function projection(velocities::AbstractMatrix{VT}, dist::ParticleDistribution{PT,1,2}, final_dist::SplineDistribution{ST,1,2}) where {VT,PT,ST}
     rhs = zeros(VT, length(final_dist))
     M = length(final_dist.basis)
-    d_start = BSplineKit.knots(final_dist.basis)[1]
+    d_start = BSplineKit.knots(final_dist.basis)[begin]
     d_end = BSplineKit.knots(final_dist.basis)[end]
     # nknots = length(BSplineKit.knots(final_dist.basis))
 
@@ -136,12 +136,12 @@ function projection(velocities::AbstractMatrix{VT}, dist::ParticleDistribution{P
         # Iterate over evaluated basis functions.
         # The indices of the evaluated basis functions are ilast:-1:(ilast - k + 1),
         # where k is the spline order.
-        for (δi, bi) ∈ pairs(bs1)
-            for (δi2, b2) ∈ pairs(bs2)
-                i = ilast1 + 1 - δi
+        for (δi1, bi1) ∈ pairs(bs1)
+            for (δi2, bi2) ∈ pairs(bs2)
+                i = ilast1 + 1 - δi1
                 j = ilast2 + 1 - δi2
                 if i > 0 && i <= M && j > 0 && j <= M
-                    rhs[(j-1)*M + i] += bi * b2 * dist.particles.w[1,p]
+                    rhs[(j-1) * M + i] += bi1 * bi2 * dist.particles.w[1,p]
                 # elseif ilast1 <= 0 || ilast1 > M || ilast2 <= 0 || ilast2 > M
                 elseif velocities[1,p] < d_start ||  velocities[2,p] < d_start || velocities[1,p] > d_end || velocities[2,p] > d_end 
                     println("WARNING: particle outside domain")
