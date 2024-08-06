@@ -105,14 +105,12 @@ function Picard_iterate_Landau_nls!(landau, tol, ftol, β, Δt, ti, t, v_prev, v
     params = (dist = dist, ent = ent, n = n)
     
     # use Hermite extrapolation to get an initial guess
-    # if ti ≥ 4
-    #     Extrapolators.extrapolate!(t - 2Δt, v_prev_2, view(rhs_prev, :, :, 2), t - Δt, v_prev, view(rhs_prev, :, :, 1), t, v_guess, Extrapolators.HermiteExtrapolation())
-    # end
-
-    # problemGNI = ODEProblem((v̇,v,params) -> collisions_rhs!(v̇,v,params,landau), (t, t+Δt), Δt, v_prev)
-
-    # Extrapolators.extrapolate!(t - Δt, v_prev, t, v_guess, problemGNI, Extrapolators.MidpointExtrapolation(4))
-
+    if ti ≥ 4
+        Extrapolators.extrapolate!(t - 2Δt, v_prev_2, view(rhs_prev, :, :, 2), t - Δt, v_prev, view(rhs_prev, :, :, 1), t, v_guess, Extrapolators.HermiteExtrapolation())
+    else
+        problemGNI = GeometricEquations.ODEProblem((v̇,t,v,params) -> collisions_rhs!(v̇,v,params,landau), (t, t+Δt), Δt, v_prev; parameters = params)
+        Extrapolators.extrapolate!(t - Δt, v_prev, t, v_guess, problemGNI, Extrapolators.MidpointExtrapolation(5))
+    end
 
     probN = NonlinearProblem{true}((f, v, p) -> f!(f, v, v_prev, params, Δt, landau), v_guess)
 
