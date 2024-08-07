@@ -57,32 +57,16 @@ function SplineDistribution(xdim, vdim, nknots::KT, s_order::OT, domain::Tuple, 
         mass_1d = galerkin_matrix(basis, Matrix{Float64})
         # mass_1d = galerkin_matrix(basis)
     else
-        mass_1d = compute_mass_matrix(basis, extended_knots)
+        mass_1d = mass_matrix(basis, TrapezoidalQuadrature())
     end
 
     coefficients = zeros(length(basis)^vdim)
 
     if vdim == 1
-        mass_matrix = mass_1d
+        mass_mat = mass_1d
     elseif vdim == 2
-        mass_matrix = kron(mass_1d, mass_1d)
+        mass_mat = kron(mass_1d, mass_1d)
     end
 
-    return SplineDistribution(xdim, vdim, basis, coefficients, mass_matrix)
-end
-
-# TODO: Move to spline subdir. This is not distribution function specific functionality.
-# TODO: Make quadrature rule an argument.
-function compute_mass_matrix(basis, knots)
-    M = zeros(length(basis), length(basis))
-    for k in CartesianIndices(M)
-        if k[1] ≥ k[2]
-            integrand = [basis[k[1]](v) * basis[k[2]](v) for v in knots]
-            M[k] = trapz(knots, integrand)
-        else
-            M[k] = M[k[2], k[1]]
-        end
-    end  
-    
-    return M
+    return SplineDistribution(xdim, vdim, basis, coefficients, mass_mat)
 end
