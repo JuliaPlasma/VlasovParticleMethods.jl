@@ -56,7 +56,7 @@ struct SplineND{T, D, BT, DT, CT <: AbstractVector{T}, MT <: AbstractMatrix{T}, 
 
         mass_1d = mass_matrix(basis, mass_quadrature)
         mass_nd = kron((mass_1d for _ in 1:D)...)
-        mass_fac = factorize(mass_nd)
+        mass_fac = cholesky(mass_nd)
 
         new{
             eltype(coefficients),
