@@ -18,8 +18,9 @@ function mass_matrix(basis::AbstractBSplineBasis, quadrature::QuadratureRule)
 end
 
 function VlasovMethods.mass_matrix(basis::PeriodicBSplineBasis, quadrature::QuadratureRule)
+    p = BSplineKit.order(basis)
     M = zeros(length(basis), length(basis))
-    K = sort([Set(BSplineKit.knots(basis))...])[begin+1:end]
+    K = sort([Set(BSplineKit.knots(basis))...])[begin+(p-1):end]
     Δ = K[end] - K[begin]
 
     for i in axes(M,1)
