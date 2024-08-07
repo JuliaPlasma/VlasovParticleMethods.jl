@@ -18,12 +18,14 @@ end
 
 @testset "Mass Matrix" begin
 
-    sorder = 2
+    # Knot vector with 5 knots
     nknots = 5
     sknots = collect(0.0:(nknots-1))
 
+    # B-splines of order 2
+    sorder = 2
+
     # B-spline basis with Dirichlet BCs
-    sknots = collect(0.0:(nknots-1))
     sbasis = BSplineBasis(BSplineOrder(sorder), copy(sknots))
     nbasis = length(sbasis)
 
@@ -40,7 +42,6 @@ end
     @test all(smass .== rmass)
 
     # B-spline basis with Periodic BCs
-    sknots = collect(0.0:(nknots-1))
     sbasis = PeriodicBSplineBasis(BSplineOrder(sorder), copy(sknots))
     nbasis = length(sbasis)
 
@@ -55,5 +56,27 @@ end
     rmass = Matrix(1.0I, nbasis, nbasis)
     
     @test all(smass .== rmass)
+
+
+    # B-splines of order 3
+    sorder = 3
+
+    # B-spline basis with Dirichlet BCs
+    sbasis = BSplineBasis(BSplineOrder(sorder), copy(sknots))
+
+    # Dirichlet BCs with (exact) Gauss-Legendre quadrature
+    smass = mass_matrix(sbasis, GaussLegendreQuadrature(3))
+    rmass = galerkin_matrix(sbasis)
+
+    @test all(isapprox.(smass, rmass; atol = 2eps()))
+
+    # B-spline basis with Periodic BCs
+    sbasis = PeriodicBSplineBasis(BSplineOrder(sorder), copy(sknots))
+    
+    # Periodic BCs with (exact) Gauss-Legendre quadrature
+    smass = mass_matrix(sbasis, GaussLegendreQuadrature(3))
+    rmass = galerkin_matrix(sbasis)
+
+    @test all(isapprox.(smass, rmass; atol = 2eps()))
 
 end
