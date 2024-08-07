@@ -18,6 +18,7 @@ using ParticleMethods
 # using Plots
 using PoissonSolvers
 using ProgressMeter
+using QuadratureRules
 using Random
 using Sobol
 using SimpleSolvers
@@ -49,7 +50,7 @@ include("examples/example.jl")
 include("sampling/sampling.jl")
 include("entropies/entropy.jl")
 include("splines/nd_spline.jl")
-
+include("splines/spline_nd.jl")
 
 export initialize!
 
