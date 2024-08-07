@@ -9,7 +9,7 @@ function mass_matrix(basis::AbstractBSplineBasis, quadrature::QuadratureRule)
         for j in axes(M,2)
             for k in eachindex(K[begin:end-1])
                 remap = y -> unit_interval_to_knot_interval(y, K[k], K[k+1])
-                M[i,j] += quadrature(v -> (basis[i] ∘ remap)(v) * (basis[j] ∘ remap)(v))
+                M[i,j] += quadrature(v -> (basis[i] ∘ remap)(v) * (basis[j] ∘ remap)(v)) * (K[k+1] - K[k])
             end
         end
     end  
@@ -17,7 +17,7 @@ function mass_matrix(basis::AbstractBSplineBasis, quadrature::QuadratureRule)
     return M
 end
 
-function VlasovMethods.mass_matrix(basis::PeriodicBSplineBasis, quadrature::QuadratureRule)
+function mass_matrix(basis::PeriodicBSplineBasis, quadrature::QuadratureRule)
     p = BSplineKit.order(basis)
     M = zeros(length(basis), length(basis))
     K = sort([Set(BSplineKit.knots(basis))...])[begin+(p-1):end]
@@ -30,7 +30,7 @@ function VlasovMethods.mass_matrix(basis::PeriodicBSplineBasis, quadrature::Quad
                 remapm = y -> unit_interval_to_knot_interval(y, K[k], K[k+1]) - Δ
                 integrand = v -> ((basis[i] ∘ remap)(v) + (basis[i] ∘ remapm)(v)) *
                                  ((basis[j] ∘ remap)(v) + (basis[j] ∘ remapm)(v))
-                M[i,j] += quadrature(integrand)
+                M[i,j] += quadrature(integrand) * (K[k+1] - K[k])
             end
         end
     end
