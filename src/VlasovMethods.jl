@@ -4,8 +4,6 @@ using Logging: global_logger
 using TerminalLoggers: TerminalLogger
 global_logger(TerminalLogger())
 
-using BSplineKit
-using BSplineKit.BSplines
 using Distances
 using FastGaussQuadrature
 using HDF5
@@ -28,6 +26,11 @@ using Trapz
 
 # import DifferentialEquations
 # import NaNMath
+
+import BSplineKit
+import BSplineKit: AbstractBSplineBasis, BSplineBasis, PeriodicBSplineBasis, RecombinedBSplineBasis
+import BSplineKit: BSplineOrder
+import BSplineKit.BSplines
 
 import GeometricEquations
 import GeometricEquations: ntime

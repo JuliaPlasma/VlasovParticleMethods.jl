@@ -10,7 +10,7 @@ struct SplineDistribution{DT, XD, VD, ST, BT, MT, FT} <: DistributionFunction{DT
         _coefficients = Vector(coefficients)
         # mass_1d = galerkin_matrix(basis)
         if vdim == 1
-            spline = Spline(basis, _coefficients)
+            spline = BSplineKit.Spline(basis, _coefficients)
             # mass_matrix = mass_1d
         elseif vdim == 2
             spline = TwoDSpline(basis, _coefficients)
@@ -29,7 +29,7 @@ Base.similar(AT, s::SplineDistribution{DT,XD,VD}) where {DT,XD,VD} =
     SplineDistribution(XD, VD, s.basis, zeros(AT, axes(s.coefficients)), s.mass_matrix)
 
 similar_type(AT, ::SplineDistribution{DT, XD, VD, TwoDSpline{DT, BT, BT2}, BT, MT, FT}) where {DT, XD, VD, BT, MT, FT, BT2} = SplineDistribution{AT, XD, VD, TwoDSpline{AT, BT, BT2}, BT, MT, FT}
-similar_type(AT, ::SplineDistribution{DT, XD, VD, Spline{DT, BT, Vector{DT}}, BT, MT, FT}) where {DT, XD, VD, BT, MT, FT} = SplineDistribution{AT, XD, VD, Spline{AT, BT, Vector{AT}}, BT, MT, FT}
+similar_type(AT, ::SplineDistribution{DT, XD, VD, BSplineKit.Spline{DT, BT, Vector{DT}}, BT, MT, FT}) where {DT, XD, VD, BT, MT, FT} = SplineDistribution{AT, XD, VD, Spline{AT, BT, Vector{AT}}, BT, MT, FT}
 
 
 function SplineDistribution(xdim, vdim, nknots::KT, s_order::OT, domain::Tuple, length_big_cell, bc::Symbol=:Dirichlet, compute_mass_galerkin::Bool=true) where {KT, OT}
@@ -45,7 +45,7 @@ function SplineDistribution(xdim, vdim, nknots::KT, s_order::OT, domain::Tuple, 
     # b = BSplineBasis(BSplineOrder(s_order), extended_knots)
     if bc == :Dirichlet
         b = BSplineBasis(BSplineOrder(s_order), extended_knots)
-        basis = RecombinedBSplineBasis(Derivative(0), b)
+        basis = RecombinedBSplineBasis(BSplineKit.Derivative(0), b)
     elseif bc == :Periodic
         basis = PeriodicBSplineBasis(BSplineOrder(s_order), extended_knots)
     else #TODO: add other boundary condition options here

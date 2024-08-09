@@ -34,7 +34,7 @@ end
  end
 
 # used for plotting
- function LB_rhs(v, params, fs::Spline)
+ function LB_rhs(v, params, fs::BSplineKit.Spline)
 
     dfdv = Derivative(1) * fs # TODO: does this belong here?
 

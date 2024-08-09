@@ -82,7 +82,7 @@ end
 
     fs = projection(v, params.idist, dist)
 
-    dfdv = Derivative(1) * fs 
+    dfdv = BSplineKit.Derivative(1) * fs 
 
     A = compute_coefficients(dist, params.idist, v)
     v̇ .= -params.ν .* ((one(ST) ./ fs.(v)) .* dfdv.(v) .+ ( A[1] .+ A[2] .* v))
@@ -97,7 +97,7 @@ end
 
     fs = projection(q, params.idist, dist)
 
-    dfdv = Derivative(1) * fs 
+    dfdv = BSplineKit.Derivative(1) * fs 
 
     A = compute_coefficients(dist, params.idist, q)
 
@@ -107,11 +107,11 @@ end
  end
 
 # used for plotting
- function CLB_rhs(v::AbstractVector{ST}, params, fs::Spline) where {ST}
+ function CLB_rhs(v::AbstractVector{ST}, params, fs::BSplineKit.Spline) where {ST}
 
     dist = params.model.ent.cache[ST]
 
-    dfdv = Derivative(1) * fs 
+    dfdv = BSplineKit.Derivative(1) * fs 
 
     A = compute_coefficients(dist, params.idist, v)
 
