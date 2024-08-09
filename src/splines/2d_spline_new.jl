@@ -88,8 +88,7 @@ end
 
 function ij_from_k(k::Int, M::Int)
     i = mod1(k, M)
-    j = Int((k - i)/M) + 1#TODO: Use proper int division
-
+    j = div(k - i, M) + 1
     return i, j
 end
 
@@ -112,7 +111,6 @@ end
 
 
 function eval_bfd(B::AbstractBSplineBasis, k, v1::T, v2::T) where T
-    # M = length(B)
     i, j = ij_from_k(k, length(B))
 
     a = B[i,T]

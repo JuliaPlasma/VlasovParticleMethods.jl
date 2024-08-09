@@ -2,11 +2,10 @@
 using BSplineKit
 using VlasovMethods
 using SciMLBase
-# using GeometricIntegrators.Extrapolators
-# using Integrals
-# using BenchmarkTools
+
 # using JLD2
 
+# using BenchmarkTools
 # using ProfileView
 # using Cthulhu
 using Profile
@@ -43,9 +42,11 @@ trange = (tspan[1] - tstep):tstep:tspan[2]
 
 S = projection(dist.particles.v, dist, sdist)
 
+# construct Landau operator
 landau = Landau(dist, entropy; ν = ν)
 
-const landau_rhs!(v̇, v, params) = VlasovMethods.collisions_rhs!(v̇, v, params, landau)
+# closure for vector field
+const landau_rhs!(v̇, v, params) = VlasovMethods.collisional_vectorfield!(v̇, v, params, landau)
 
 params = (sdist2 = sdist2, n = 2)
 rhs = zero(dist.particles.v)

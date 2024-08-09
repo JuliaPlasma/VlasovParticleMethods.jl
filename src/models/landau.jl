@@ -3,6 +3,7 @@ struct LandauCache{T, PT <: ParticleDistribution, ST <: SplineDistribution{T}} <
     sdist::ST
 
     v::Matrix{T}
+    v̇::Matrix{T}
 
     J::Vector{T}
     L::Matrix{T}
@@ -15,6 +16,7 @@ struct LandauCache{T, PT <: ParticleDistribution, ST <: SplineDistribution{T}} <
         N = size(pdist.particles.v, 2)
 
         v = zero(pdist.particles.v)
+        v̇ = zero(pdist.particles.v)
 
         J  = zeros(T, M)
         L  = zeros(T, (M,M))
@@ -22,7 +24,7 @@ struct LandauCache{T, PT <: ParticleDistribution, ST <: SplineDistribution{T}} <
         K1 = zeros(T, (M,N))
         K2 = zeros(T, (M,N))
         
-        new{T, typeof(pdist), typeof(sdist)}(pdist, sdist, v, J, L, LJ, K1, K2)
+        new{T, typeof(pdist), typeof(sdist)}(pdist, sdist, v, v̇, J, L, LJ, K1, K2)
     end
 end
 
@@ -246,7 +248,7 @@ function L_integrand(v1::AbstractVector{T}, v2::AbstractVector{T}, params, landa
     id_list_2 = evaluate_der_2d_indices(params.sdist.basis, v2)
     
     for i in eachindex(params.k)
-        (params.k[i] in id_list_1 || params.k[i] in id_list_2) || return zero(T)
+        params.k[i] in id_list_1 || params.k[i] in id_list_2 || return zero(T)
     end
 
     L_integrand(v1, v2, params.sdist, params.k[1], params.k[2], landau)
@@ -279,7 +281,7 @@ end
 
 
 # spline-to-spline? version 
-function collisions_rhs!(v̇::AbstractArray{ST}, v::AbstractArray{ST}, params, landau::Landau) where {ST}
+function collisional_vectorfield!(v̇::AbstractArray{ST}, v::AbstractArray{ST}, params, landau::Landau) where {ST}
     cache = landau.cache[ST]
 
     # project v onto params.sdist
