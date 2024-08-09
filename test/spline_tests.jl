@@ -1,6 +1,7 @@
 using BSplineKit
 using LinearAlgebra
 using QuadratureRules
+using Random
 using VlasovMethods
 using Test
 
@@ -58,65 +59,191 @@ end
     @test all(smass .== rmass)
 
 
-    # B-splines of order 3
-    sorder = 3
+    # B-splines of order 3 to 6
+    for sorder in 3:6
 
-    # B-spline basis with Dirichlet BCs
-    sbasis = BSplineBasis(BSplineOrder(sorder), copy(sknots))
+        # B-spline basis with Dirichlet BCs
+        sbasis = BSplineBasis(BSplineOrder(sorder), copy(sknots))
 
-    # Dirichlet BCs with (exact) Gauss-Legendre quadrature
-    smass = mass_matrix(sbasis, GaussLegendreQuadrature(3))
-    rmass = galerkin_matrix(sbasis)
+        # Dirichlet BCs with (exact) Gauss-Legendre quadrature
+        smass = mass_matrix(sbasis, GaussLegendreQuadrature(sorder))
+        rmass = galerkin_matrix(sbasis)
 
-    @test all(isapprox.(smass, rmass; atol = 2eps()))
+        @test all(isapprox.(smass, rmass; atol = 2eps()))
 
-    # B-spline basis with Periodic BCs
-    sbasis = PeriodicBSplineBasis(BSplineOrder(sorder), copy(sknots))
-    
-    # Periodic BCs with (exact) Gauss-Legendre quadrature
-    smass = mass_matrix(sbasis, GaussLegendreQuadrature(3))
-    rmass = galerkin_matrix(sbasis)
 
-    @test all(isapprox.(smass, rmass; atol = 2eps()))
+        # B-spline basis with Periodic BCs
+        sbasis = PeriodicBSplineBasis(BSplineOrder(sorder), copy(sknots))
+        
+        # Periodic BCs with (exact) Gauss-Legendre quadrature
+        smass = mass_matrix(sbasis, GaussLegendreQuadrature(sorder))
+        rmass = galerkin_matrix(sbasis)
+
+        @test all(isapprox.(smass, rmass; atol = 2eps()))
+
+    end
 
 end
 
-@testset "N-dimensional B-Spline" begin
+
+@testset "1-dimensional B-Spline" begin
+
     d = 1
     o = 2
     k = 0:0.1:2
     q = GaussLegendreQuadrature(2)
 
-    @test_nowarn SplineND(d, o, copy(k), q)
-    @test_nowarn SplineND(d, o, copy(k), :Natural, q)
-    @test_nowarn SplineND(d, o, copy(k), :Dirichlet, q)
-    @test_nowarn SplineND(d, o, copy(k), :Periodic, q)
+    @test_nowarn SplineND(d, o, k, q)
+    @test_nowarn SplineND(d, o, k, :Natural, q)
+    @test_nowarn SplineND(d, o, k, :Dirichlet, q)
+    @test_nowarn SplineND(d, o, k, :Periodic, q)
 
-    s = SplineND(d, o, k, q)
 
-    # @test SplineND(d, o, copy(k), :Natural, q) == s
+    ### B-spline with natural boundary conditions ###
+
+    s = SplineND(d, o, k, :Natural, q)
+
     @test eltype(s) == Float64
     @test ndims(s) == d
     @test order(s) == o
+    @test size(s) == (length(k)+(o-2),)
     @test unique_knots(s) == k
 
+    rand!(s.coefficients)
+
+    @test s(k[begin]) == s([k[begin]]) == s.coefficients[begin]
+    @test s(k[end]) == s([k[end]]) == s.coefficients[end]
+
+
+    ### B-spline with Dirichlet boundary conditions ###
+
+    s = SplineND(d, o, k, :Dirichlet, q)
+
+    @test eltype(s) == Float64
+    @test ndims(s) == d
+    @test order(s) == o
+    @test size(s) == (length(k)-2,)
+    @test unique_knots(s) == k
+
+    rand!(s.coefficients)
+
+    @test s(k[begin]) == s([k[begin]]) == 0
+    @test s(k[end]) == s([k[end]]) == 0
+
+    
+    ### B-spline with periodic boundary conditions ###
+
+    s = SplineND(d, o, k, :Periodic, q)
+
+    @test eltype(s) == Float64
+    @test ndims(s) == d
+    @test order(s) == o
+    @test size(s) == (length(k)-1,)
+    @test unique_knots(s) == k
+
+    rand!(s.coefficients)
+
+    @test s(k[begin]) == s(k[end])
+
+
+    ### Check size and knots
+
+    for o in 2:8
+        b = SplineND(d, o, k, :Natural, q)
+        @test size(b) == (length(k) + (o-2),)
+        @test unique_knots(b) == k
+        
+        b = SplineND(d, o, k, :Dirichlet, q)
+        @test size(b) == (length(k) + (o-4),)
+        @test unique_knots(b) == k
+        
+        b = SplineND(d, o, k, :Periodic, q)
+        @test size(b) == (length(k)-1,)
+        @test unique_knots(b) == k
+    end
+
+end
+
+
+@testset "2-dimensional B-Spline" begin
 
     d = 2
     o = 3
     k = -2:0.1:+1
     q = GaussLegendreQuadrature(3)
 
-    @test_nowarn SplineND(d, o, copy(k), q)
-    @test_nowarn SplineND(d, o, copy(k), :Natural, q)
-    @test_nowarn SplineND(d, o, copy(k), :Dirichlet, q)
-    @test_nowarn SplineND(d, o, copy(k), :Periodic, q)
+    @test_nowarn SplineND(d, o, k, q)
+    @test_nowarn SplineND(d, o, k, :Natural, q)
+    @test_nowarn SplineND(d, o, k, :Dirichlet, q)
+    @test_nowarn SplineND(d, o, k, :Periodic, q)
 
-    s = SplineND(d, o, k, q)
+    ### B-spline with natural boundary conditions ###
 
-    # @test SplineND(d, o, copy(k), :Natural, q) == s
+    s = SplineND(d, o, k, :Natural, q)
+
     @test eltype(s) == Float64
     @test ndims(s) == d
     @test order(s) == o
+    @test size(s) == (length(k)+(o-2), length(k)+(o-2))
     @test unique_knots(s) == k
+
+    rand!(s.coefficients)
+
+    @test s(k[begin], k[begin]) == s.coefficients[begin, begin]
+    @test s(k[begin], k[end]) == s.coefficients[begin, end]
+    @test s(k[end], k[begin]) == s.coefficients[end, begin]
+    @test s(k[end], k[end]) == s.coefficients[end, end]
+
+
+    ### B-spline with Dirichlet boundary conditions ###
+
+    s = SplineND(d, o, k, :Dirichlet, q)
+
+    @test eltype(s) == Float64
+    @test ndims(s) == d
+    @test order(s) == o
+    @test size(s) == (length(k)-1, length(k)-1)
+    @test unique_knots(s) == k
+
+    rand!(s.coefficients)
+
+    @test s(k[begin], k[begin]) == 0
+    @test s(k[begin], k[end]) == 0
+    @test s(k[end], k[begin]) == 0
+    @test s(k[end], k[end]) == 0
+
+    
+    ### B-spline with periodic boundary conditions ###
+
+    s = SplineND(d, o, k, :Periodic, q)
+
+    @test eltype(s) == Float64
+    @test ndims(s) == d
+    @test order(s) == o
+    @test size(s) == (length(k)-1, length(k)-1)
+    @test unique_knots(s) == k
+
+    rand!(s.coefficients)
+
+    @test s(k[begin], k[begin]) ≈ s(k[begin], k[end]) atol = 2eps()
+    @test s(k[begin], k[begin]) ≈ s(k[end], k[begin]) atol = 2eps()
+    @test s(k[begin], k[begin]) ≈ s(k[end], k[end])   atol = 2eps()
+
+
+    ### Check size and knots
+
+    for o in 2:8
+        b = SplineND(d, o, k, :Natural, q)
+        @test size(b) == (length(k) + (o-2), length(k) + (o-2))
+        @test unique_knots(b) == k
+        
+        b = SplineND(d, o, k, :Dirichlet, q)
+        @test size(b) == (length(k) + (o-4), length(k) + (o-4))
+        @test unique_knots(b) == k
+        
+        b = SplineND(d, o, k, :Periodic, q)
+        @test size(b) == (length(k)-1, length(k)-1)
+        @test unique_knots(b) == k
+    end
 
 end

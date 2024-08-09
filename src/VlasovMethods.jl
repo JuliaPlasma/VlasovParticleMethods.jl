@@ -53,12 +53,16 @@ include("examples/example.jl")
 include("sampling/sampling.jl")
 include("entropies/entropy.jl")
 include("splines/nd_spline.jl")
-include("splines/spline_nd.jl")
 
 export initialize!
 
 
 # splines
+
+include("splines/spline_nd.jl")
+
+export SplineND
+
 # include("splines/2d_spline.jl")
 include("splines/2d_spline_new.jl")
 export TwoDSpline
