@@ -4,7 +4,7 @@ using QuadratureRules
 using VlasovMethods
 using Test
 
-using VlasovMethods: mass_matrix, remap_unit_interval
+using VlasovMethods: mass_matrix, order, remap_unit_interval, unique_knots
 
 
 @testset "Spline Utilities" begin
@@ -78,5 +78,45 @@ end
     rmass = galerkin_matrix(sbasis)
 
     @test all(isapprox.(smass, rmass; atol = 2eps()))
+
+end
+
+@testset "N-dimensional B-Spline" begin
+    d = 1
+    o = 2
+    k = 0:0.1:2
+    q = GaussLegendreQuadrature(2)
+
+    @test_nowarn SplineND(d, o, copy(k), q)
+    @test_nowarn SplineND(d, o, copy(k), :Natural, q)
+    @test_nowarn SplineND(d, o, copy(k), :Dirichlet, q)
+    @test_nowarn SplineND(d, o, copy(k), :Periodic, q)
+
+    s = SplineND(d, o, k, q)
+
+    # @test SplineND(d, o, copy(k), :Natural, q) == s
+    @test eltype(s) == Float64
+    @test ndims(s) == d
+    @test order(s) == o
+    @test unique_knots(s) == k
+
+
+    d = 2
+    o = 3
+    k = -2:0.1:+1
+    q = GaussLegendreQuadrature(3)
+
+    @test_nowarn SplineND(d, o, copy(k), q)
+    @test_nowarn SplineND(d, o, copy(k), :Natural, q)
+    @test_nowarn SplineND(d, o, copy(k), :Dirichlet, q)
+    @test_nowarn SplineND(d, o, copy(k), :Periodic, q)
+
+    s = SplineND(d, o, k, q)
+
+    # @test SplineND(d, o, copy(k), :Natural, q) == s
+    @test eltype(s) == Float64
+    @test ndims(s) == d
+    @test order(s) == o
+    @test unique_knots(s) == k
 
 end
