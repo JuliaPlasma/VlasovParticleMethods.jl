@@ -4,14 +4,14 @@ using QuadratureRules
 using VlasovMethods
 using Test
 
-using VlasovMethods: mass_matrix, unit_interval_to_knot_interval
+using VlasovMethods: mass_matrix, remap_unit_interval
 
 
 @testset "Spline Utilities" begin
 
-    @test unit_interval_to_knot_interval(0.0, 0.0, 2.0) == 0.0
-    @test unit_interval_to_knot_interval(0.5, 0.0, 2.0) == 1.0
-    @test unit_interval_to_knot_interval(1.0, 0.0, 2.0) == 2.0
+    @test remap_unit_interval(0.0, 0.0, 2.0) == 0.0
+    @test remap_unit_interval(0.5, 0.0, 2.0) == 1.0
+    @test remap_unit_interval(1.0, 0.0, 2.0) == 2.0
 
 end
 
