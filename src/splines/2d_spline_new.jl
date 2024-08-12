@@ -37,8 +37,8 @@ function evaluate(S::TwoDSpline{T}, x::AbstractVector) where {T}
     # k = order(S)
     result::T = 0
     
-    ilast1, bs1 = evaluate_all(B, x[1])
-    ilast2, bs2 = evaluate_all(B, x[2])
+    ilast1, bs1 = BSplineKit.evaluate_all(B, x[1])
+    ilast2, bs2 = BSplineKit.evaluate_all(B, x[2])
 
     for (δi, bi) ∈ pairs(bs1)
         for (δi2, b2) ∈ pairs(bs2)
@@ -106,7 +106,7 @@ function eval_bfd(B::AbstractBSplineBasis, k, v::AbstractVector{T}) where T
     a = B[i,T]
     b = B[j,T]
 
-    @SVector [a(v[1], Derivative(1)) * b(v[2]), a(v[1]) * b(v[2], Derivative(1))]
+    @SVector [a(v[1], BSplineKit.Derivative(1)) * b(v[2]), a(v[1]) * b(v[2], BSplineKit.Derivative(1))]
 end
 
 
@@ -116,41 +116,41 @@ function eval_bfd(B::AbstractBSplineBasis, k, v1::T, v2::T) where T
     a = B[i,T]
     b = B[j,T]
 
-    @SVector [a(v1, Derivative(1)) * b(v2), a(v1) * b(v2, Derivative(1))]
+    @SVector [a(v1, BSplineKit.Derivative(1)) * b(v2), a(v1) * b(v2, BSplineKit.Derivative(1))]
 end
 
 
-function eval_bfd!(derivative::AbstractVector{T}, B::AbstractBSplineBasis, k, v, α, β) where T
-    # M = length(B)
-    i, j = ij_from_k(k, length(B))
+# function eval_bfd!(derivative::AbstractVector{T}, B::AbstractBSplineBasis, k, v, α, β) where T
+#     # M = length(B)
+#     i, j = ij_from_k(k, length(B))
 
-    a = B[i,T]
-    b = B[j,T]
+#     a = B[i,T]
+#     b = B[j,T]
 
-    derivative[1] = α * derivative[1] + β * a(v[1], Derivative(1)) * b(v[2])
-    derivative[2] = α * derivative[2] + β * a(v[1]) * b(v[2], Derivative(1))
-end
+#     derivative[1] = α * derivative[1] + β * a(v[1], Derivative(1)) * b(v[2])
+#     derivative[2] = α * derivative[2] + β * a(v[1]) * b(v[2], Derivative(1))
+# end
 
-function eval_bfd!(derivative::AbstractVector{T}, B::AbstractBSplineBasis, k, v1::T, v2::T, α, β) where T
-    # M = length(B)
-    i, j = ij_from_k(k, length(B))
+# function eval_bfd!(derivative::AbstractVector{T}, B::AbstractBSplineBasis, k, v1::T, v2::T, α, β) where T
+#     # M = length(B)
+#     i, j = ij_from_k(k, length(B))
 
-    a = B[i,T]
-    b = B[j,T]
+#     a = B[i,T]
+#     b = B[j,T]
 
-    derivative[1] = α * derivative[1] + β * a(v1, Derivative(1)) * b(v2)
-    derivative[2] = α * derivative[2] + β * a(v1) * b(v2, Derivative(1))
-end
+#     derivative[1] = α * derivative[1] + β * a(v1, Derivative(1)) * b(v2)
+#     derivative[2] = α * derivative[2] + β * a(v1) * b(v2, Derivative(1))
+# end
 
 function evaluate_der_2d(B::AbstractBSplineBasis, v::AbstractVector{T}) where T
     M = length(B)
 
-    i1, bs1 = evaluate_all(B, v[1])
-    i2, bs2 = evaluate_all(B, v[2])
+    i1, bs1 = BSplineKit.evaluate_all(B, v[1])
+    i2, bs2 = BSplineKit.evaluate_all(B, v[2])
 
     #derivatives 
-    i1_der, bs1_der = evaluate_all(B, v[1], Derivative(1))
-    i2_der, bs2_der = evaluate_all(B, v[2], Derivative(1))
+    i1_der, bs1_der = BSplineKit.evaluate_all(B, v[1], BSplineKit.Derivative(1))
+    i2_der, bs2_der = BSplineKit.evaluate_all(B, v[2], BSplineKit.Derivative(1))
 
     index_list = zeros(Int, length(bs1) * length(bs2))
     result = zeros(T, (2, length(bs1) * length(bs2)))
@@ -188,8 +188,8 @@ function evaluate_der_2d_indices(B::AbstractBSplineBasis, v::AbstractVector{T}) 
     #     end
     # end
 
-    i1, bs1 = evaluate_all(B, v[1])
-    i2, bs2 = evaluate_all(B, v[2])
+    i1, bs1 = BSplineKit.evaluate_all(B, v[1])
+    i2, bs2 = BSplineKit.evaluate_all(B, v[2])
 
     i = i1 .+ 1 .- SVector{length(bs1)}(eachindex(bs1))
     j = i2 .+ 1 .- SVector{length(bs2)}(eachindex(bs2))
@@ -206,8 +206,8 @@ end
 function evaluate_der_2d_indices(B::AbstractBSplineBasis, v1::T, v2::T) where T
     M = length(B)
 
-    i1, bs1 = evaluate_all(B, v1)
-    i2, bs2 = evaluate_all(B, v2)
+    i1, bs1 = BSplineKit.evaluate_all(B, v1)
+    i2, bs2 = BSplineKit.evaluate_all(B, v2)
 
     #derivatives 
     # i1_der, bs1_der = evaluate_all(B, v[1], Derivative(1))
@@ -282,31 +282,31 @@ function gauss_quad(f::Function, basis::AbstractBSplineBasis, n::Int, params)
     return res
 end
 
-function gauss_quad(f::Function, basis::AbstractBSplineBasis, iknots::AbstractRange, jknots::AbstractRange, n::Int, params)
-    T = eltype(params.sdist)
-    # M = length(basis) + 1
-    # k = BSplineKit.order(basis)
-    knots = BSplineKit.knots(basis)
-    M = length(knots) - 1
-    x, w = gausslegendre(n)
+# function gauss_quad(f::Function, basis::AbstractBSplineBasis, iknots::AbstractRange, jknots::AbstractRange, n::Int, params)
+#     T = eltype(params.sdist)
+#     # M = length(basis) + 1
+#     # k = BSplineKit.order(basis)
+#     knots = BSplineKit.knots(basis)
+#     M = length(knots) - 1
+#     x, w = gausslegendre(n)
 
-    res::T = 0
+#     res::T = 0
 
-    for i in iknots[1:end-1], j in jknots[1:end-1], l in iknots[1:end-1], m in jknots[1:end-1]
-        shift_i, scale_i = shift_scale(i, knots)
-        shift_j, scale_j = shift_scale(j, knots)
-        shift_l, scale_l = shift_scale(l, knots)
-        shift_m, scale_m = shift_scale(m, knots)
+#     for i in iknots[1:end-1], j in jknots[1:end-1], l in iknots[1:end-1], m in jknots[1:end-1]
+#         shift_i, scale_i = shift_scale(i, knots)
+#         shift_j, scale_j = shift_scale(j, knots)
+#         shift_l, scale_l = shift_scale(l, knots)
+#         shift_m, scale_m = shift_scale(m, knots)
 
-        for i1 in 1:n, j1 in 1:n, l1 in 1:n, m1 in 1:n
-            v1 = convert(Array{T}, linear_transform([x[i1], x[j1]], [shift_i, shift_j], [scale_i, scale_j]))
-            v2 = convert(Array{T}, linear_transform([x[l1], x[m1]], [shift_l, shift_m], [scale_l, scale_m]))
-            res += f(v1, v2, params) * w[i1] * w[j1] * w[l1] * w[m1] * scale_i * scale_j * scale_l * scale_m
-        end
-    end
+#         for i1 in 1:n, j1 in 1:n, l1 in 1:n, m1 in 1:n
+#             v1 = convert(Array{T}, linear_transform([x[i1], x[j1]], [shift_i, shift_j], [scale_i, scale_j]))
+#             v2 = convert(Array{T}, linear_transform([x[l1], x[m1]], [shift_l, shift_m], [scale_l, scale_m]))
+#             res += f(v1, v2, params) * w[i1] * w[j1] * w[l1] * w[m1] * scale_i * scale_j * scale_l * scale_m
+#         end
+#     end
 
-    return res
-end
+#     return res
+# end
 
 function gauss_quad_2d(f::Function, basis::AbstractBSplineBasis, n::Int, params)
     T = eltype(params.sdist)
