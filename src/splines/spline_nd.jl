@@ -194,3 +194,20 @@ function evaluate_basis(s::SplineND, x::AbstractVector, i::Int)
     evaluate_basis(s, x, indices(s, i))
 end
 
+
+function _evaluate_basis_derivative(B::AbstractBSplineBasis{O,T}, x::AbstractVector{T}, I::Tuple, j::Int) where {O,T}
+    result = one(T)
+    for d in eachindex(x)
+        result *= d == j ? B[I[d],T](x[d], BSplineKit.Derivative(1)) : B[I[d],T](x[d])
+    end
+    return result
+end
+
+function evaluate_basis_derivative(s::SplineND{T,D}, x::AbstractVector{T}, I::Tuple) where {T,D}
+    @assert D == length(I) == length(x)
+    SVector{D,T}((_evaluate_basis_derivative(basis(s), x, I, d) for d in 1:D)...)
+end
+
+function evaluate_basis_derivative(s::SplineND, x::AbstractVector, i::Int)
+    evaluate_basis_derivative(s, x, indices(s, i))
+end
