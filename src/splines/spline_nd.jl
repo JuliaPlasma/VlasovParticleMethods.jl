@@ -161,3 +161,36 @@ end
 
 (s::SplineND{T})(x::AbstractVector{T}) where {T} = evaluate(s, x)
 (s::SplineND{T,D})(x::Vararg{T,D}) where {D,T} = evaluate(s, SVector{D}(x...))
+
+
+function indices(::SplineND{T,1}, i::Int) where {T}
+    return (i,)
+end
+
+function indices(s::SplineND{T,2}, inds::Int) where {T}
+    L = length(basis(s))
+    i = mod1(inds, L)
+    j = div(inds - i, L) + 1
+    return (i, j)
+end
+
+
+function _evaluate_basis(B::AbstractBSplineBasis{O,T}, x::AbstractVector{T}, I::Tuple) where {O,T}
+    result = one(T)
+
+    for d in eachindex(x)
+        result *= B[I[d]](x[d])
+    end
+
+    return result
+end
+
+function evaluate_basis(s::SplineND, x::AbstractVector, I::Tuple)
+    @assert ndims(s) == length(I) == length(x)
+    _evaluate_basis(basis(s), x, I)
+end
+
+function evaluate_basis(s::SplineND, x::AbstractVector, i::Int)
+    evaluate_basis(s, x, indices(s, i))
+end
+

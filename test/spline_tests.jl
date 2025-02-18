@@ -6,6 +6,7 @@ using VlasovMethods
 using Test
 
 using VlasovMethods: mass_matrix, order, remap_unit_interval, unique_knots
+using VlasovMethods: evaluate_basis, evaluate_basis_derivative, indices
 
 
 @testset "Spline Utilities" begin
@@ -115,6 +116,39 @@ end
     @test s(k[end]) == s([k[end]]) == s.coefficients[end]
 
 
+    s = SplineND(1, 2, 0:0.5:1, :Natural, GaussLegendreQuadrature(1))
+
+    @test evaluate_basis(s, [0.0], 1) == 1.0
+    @test evaluate_basis(s, [0.0], 2) == 0.0
+    @test evaluate_basis(s, [0.0], 3) == 0.0
+
+    @test evaluate_basis(s, [0.5], 1) == 0.0
+    @test evaluate_basis(s, [0.5], 2) == 1.0
+    @test evaluate_basis(s, [0.5], 3) == 0.0
+
+    @test evaluate_basis(s, [1.0], 1) == 0.0
+    @test evaluate_basis(s, [1.0], 2) == 0.0
+    @test evaluate_basis(s, [1.0], 3) == 1.0
+
+
+    s = SplineND(1, 3, 0:0.5:1, :Natural, GaussLegendreQuadrature(2))
+
+    @test evaluate_basis(s, [0.0], 1) == 1.0
+    @test evaluate_basis(s, [0.0], 2) == 0.0
+    @test evaluate_basis(s, [0.0], 3) == 0.0
+    @test evaluate_basis(s, [0.0], 4) == 0.0
+
+    @test evaluate_basis(s, [0.5], 1) == 0.0
+    @test evaluate_basis(s, [0.5], 2) == 0.5
+    @test evaluate_basis(s, [0.5], 3) == 0.5
+    @test evaluate_basis(s, [0.5], 4) == 0.0
+
+    @test evaluate_basis(s, [1.0], 1) == 0.0
+    @test evaluate_basis(s, [1.0], 2) == 0.0
+    @test evaluate_basis(s, [1.0], 3) == 0.0
+    @test evaluate_basis(s, [1.0], 4) == 1.0
+
+
     ### B-spline with Dirichlet boundary conditions ###
 
     s = SplineND(d, o, k, :Dirichlet, q)
@@ -129,6 +163,57 @@ end
 
     @test s(k[begin]) == s([k[begin]]) == 0
     @test s(k[end]) == s([k[end]]) == 0
+
+
+    s = SplineND(1, 2, 0:0.25:1, :Dirichlet, GaussLegendreQuadrature(2))
+
+    @test evaluate_basis(s, [0.00], 1) == 0.0
+    @test evaluate_basis(s, [0.00], 2) == 0.0
+    @test evaluate_basis(s, [0.00], 3) == 0.0
+
+    @test evaluate_basis(s, [0.25], 1) == 1.0
+    @test evaluate_basis(s, [0.25], 2) == 0.0
+    @test evaluate_basis(s, [0.25], 3) == 0.0
+
+    @test evaluate_basis(s, [0.50], 1) == 0.0
+    @test evaluate_basis(s, [0.50], 2) == 1.0
+    @test evaluate_basis(s, [0.50], 3) == 0.0
+
+    @test evaluate_basis(s, [0.75], 1) == 0.0
+    @test evaluate_basis(s, [0.75], 2) == 0.0
+    @test evaluate_basis(s, [0.75], 3) == 1.0
+
+    @test evaluate_basis(s, [1.00], 1) == 0.0
+    @test evaluate_basis(s, [1.00], 2) == 0.0
+    @test evaluate_basis(s, [1.00], 3) == 0.0
+
+
+    s = SplineND(1, 3, 0:0.25:1, :Dirichlet, GaussLegendreQuadrature(2))
+
+    @test evaluate_basis(s, [0.00], 1) == 0.0
+    @test evaluate_basis(s, [0.00], 2) == 0.0
+    @test evaluate_basis(s, [0.00], 3) == 0.0
+    @test evaluate_basis(s, [0.00], 4) == 0.0
+
+    @test evaluate_basis(s, [0.25], 1) == 0.5
+    @test evaluate_basis(s, [0.25], 2) == 0.5
+    @test evaluate_basis(s, [0.25], 3) == 0.0
+    @test evaluate_basis(s, [0.25], 4) == 0.0
+
+    @test evaluate_basis(s, [0.50], 1) == 0.0
+    @test evaluate_basis(s, [0.50], 2) == 0.5
+    @test evaluate_basis(s, [0.50], 3) == 0.5
+    @test evaluate_basis(s, [0.50], 4) == 0.0
+
+    @test evaluate_basis(s, [0.75], 1) == 0.0
+    @test evaluate_basis(s, [0.75], 2) == 0.0
+    @test evaluate_basis(s, [0.75], 3) == 0.5
+    @test evaluate_basis(s, [0.75], 4) == 0.5
+
+    @test evaluate_basis(s, [1.00], 1) == 0.0
+    @test evaluate_basis(s, [1.00], 2) == 0.0
+    @test evaluate_basis(s, [1.00], 3) == 0.0
+    @test evaluate_basis(s, [1.00], 4) == 0.0
 
     
     ### B-spline with periodic boundary conditions ###
@@ -146,20 +231,82 @@ end
     @test s(k[begin]) == s(k[end])
 
 
-    ### Check size and knots
+    s = SplineND(1, 2, 0:0.25:1, :Periodic, GaussLegendreQuadrature(2))
+
+    @test evaluate_basis(s, [0.00], 1) == 1.0
+    @test evaluate_basis(s, [0.00], 2) == 0.0
+    @test evaluate_basis(s, [0.00], 3) == 0.0
+    @test evaluate_basis(s, [0.00], 4) == 0.0
+
+    @test evaluate_basis(s, [0.25], 1) == 0.0
+    @test evaluate_basis(s, [0.25], 2) == 1.0
+    @test evaluate_basis(s, [0.25], 3) == 0.0
+    @test evaluate_basis(s, [0.25], 4) == 0.0
+
+    @test evaluate_basis(s, [0.50], 1) == 0.0
+    @test evaluate_basis(s, [0.50], 2) == 0.0
+    @test evaluate_basis(s, [0.50], 3) == 1.0
+    @test evaluate_basis(s, [0.50], 4) == 0.0
+
+    @test evaluate_basis(s, [0.75], 1) == 0.0
+    @test evaluate_basis(s, [0.75], 2) == 0.0
+    @test evaluate_basis(s, [0.75], 3) == 0.0
+    @test evaluate_basis(s, [0.75], 4) == 1.0
+
+    @test evaluate_basis(s, [1.00], 1) == 0.0
+    @test evaluate_basis(s, [1.00], 2) == 0.0
+    @test evaluate_basis(s, [1.00], 3) == 0.0
+    @test evaluate_basis(s, [1.00], 4) == 0.0
+
+
+    s = SplineND(1, 3, 0:0.25:1, :Periodic, GaussLegendreQuadrature(2))
+
+    @test evaluate_basis(s, [0.00], 1) == 0.5
+    @test evaluate_basis(s, [0.00], 2) == 0.0
+    @test evaluate_basis(s, [0.00], 3) == 0.0
+    @test evaluate_basis(s, [0.00], 4) == 0.0
+
+    @test evaluate_basis(s, [0.25], 1) == 0.5
+    @test evaluate_basis(s, [0.25], 2) == 0.5
+    @test evaluate_basis(s, [0.25], 3) == 0.0
+    @test evaluate_basis(s, [0.25], 4) == 0.0
+
+    @test evaluate_basis(s, [0.50], 1) == 0.0
+    @test evaluate_basis(s, [0.50], 2) == 0.5
+    @test evaluate_basis(s, [0.50], 3) == 0.5
+    @test evaluate_basis(s, [0.50], 4) == 0.0
+
+    @test evaluate_basis(s, [0.75], 1) == 0.0
+    @test evaluate_basis(s, [0.75], 2) == 0.0
+    @test evaluate_basis(s, [0.75], 3) == 0.5
+    @test evaluate_basis(s, [0.75], 4) == 0.5
+
+    @test evaluate_basis(s, [1.00], 1) == 0.0
+    @test evaluate_basis(s, [1.00], 2) == 0.0
+    @test evaluate_basis(s, [1.00], 3) == 0.0
+    @test evaluate_basis(s, [1.00], 4) == 0.5
+
+    
+    ### Check size, knots, and indices
 
     for o in 2:8
         b = SplineND(d, o, k, :Natural, q)
         @test size(b) == (length(k) + (o-2),)
         @test unique_knots(b) == k
-        
+        @test indices(b, 1) == (1,)
+        @test indices(b, size(b)[1]) == size(b)
+            
         b = SplineND(d, o, k, :Dirichlet, q)
         @test size(b) == (length(k) + (o-4),)
         @test unique_knots(b) == k
+        @test indices(b, 1) == (1,)
+        @test indices(b, size(b)[1]) == size(b)
         
         b = SplineND(d, o, k, :Periodic, q)
         @test size(b) == (length(k)-1,)
         @test unique_knots(b) == k
+        @test indices(b, 1) == (1,)
+        @test indices(b, size(b)[1]) == size(b)
     end
 
 end
@@ -195,6 +342,117 @@ end
     @test s(k[end], k[end]) == s.coefficients[end, end]
 
 
+    s = SplineND(2, 2, 0:0.5:1, :Natural, GaussLegendreQuadrature(2))
+
+    @test evaluate_basis(s, [0.0, 0.0], (1,1)) == 1.0
+    @test evaluate_basis(s, [0.0, 0.0], (1,2)) == 0.0
+    @test evaluate_basis(s, [0.0, 0.0], (1,3)) == 0.0
+
+    @test evaluate_basis(s, [0.0, 0.5], (1,1)) == 0.0
+    @test evaluate_basis(s, [0.0, 0.5], (1,2)) == 1.0
+    @test evaluate_basis(s, [0.0, 0.5], (1,3)) == 0.0
+
+    @test evaluate_basis(s, [0.0, 1.0], (1,1)) == 0.0
+    @test evaluate_basis(s, [0.0, 1.0], (1,2)) == 0.0
+    @test evaluate_basis(s, [0.0, 1.0], (1,3)) == 1.0
+
+    @test evaluate_basis(s, [0.5, 0.0], (2,1)) == 1.0
+    @test evaluate_basis(s, [0.5, 0.0], (2,2)) == 0.0
+    @test evaluate_basis(s, [0.5, 0.0], (2,3)) == 0.0
+
+    @test evaluate_basis(s, [0.5, 0.5], (2,1)) == 0.0
+    @test evaluate_basis(s, [0.5, 0.5], (2,2)) == 1.0
+    @test evaluate_basis(s, [0.5, 0.5], (2,3)) == 0.0
+
+    @test evaluate_basis(s, [0.5, 1.0], (2,1)) == 0.0
+    @test evaluate_basis(s, [0.5, 1.0], (2,2)) == 0.0
+    @test evaluate_basis(s, [0.5, 1.0], (2,3)) == 1.0
+
+    @test evaluate_basis(s, [1.0, 0.0], (3,1)) == 1.0
+    @test evaluate_basis(s, [1.0, 0.0], (3,2)) == 0.0
+    @test evaluate_basis(s, [1.0, 0.0], (3,3)) == 0.0
+
+    @test evaluate_basis(s, [1.0, 0.5], (3,1)) == 0.0
+    @test evaluate_basis(s, [1.0, 0.5], (3,2)) == 1.0
+    @test evaluate_basis(s, [1.0, 0.5], (3,3)) == 0.0
+
+    @test evaluate_basis(s, [1.0, 1.0], (3,1)) == 0.0
+    @test evaluate_basis(s, [1.0, 1.0], (3,2)) == 0.0
+    @test evaluate_basis(s, [1.0, 1.0], (3,3)) == 1.0
+
+    @test evaluate_basis(s, [0.0, 0.5], (2,1)) == 0.0
+    @test evaluate_basis(s, [0.0, 1.0], (3,1)) == 0.0
+
+    @test evaluate_basis(s, [0.5, 0.0], (1,2)) == 0.0
+    @test evaluate_basis(s, [0.5, 1.0], (3,2)) == 0.0
+
+    @test evaluate_basis(s, [1.0, 0.0], (1,3)) == 0.0
+    @test evaluate_basis(s, [1.0, 0.5], (2,3)) == 0.0
+
+
+    s = SplineND(2, 3, 0:0.5:1, :Natural, GaussLegendreQuadrature(2))
+
+    @test evaluate_basis(s, [0.0, 0.0], (1,1)) == 1.0
+    @test evaluate_basis(s, [0.0, 0.0], (1,2)) == 0.0
+    @test evaluate_basis(s, [0.0, 0.0], (1,3)) == 0.0
+    @test evaluate_basis(s, [0.0, 0.0], (1,4)) == 0.0
+
+    @test evaluate_basis(s, [0.0, 0.5], (1,1)) == 0.0
+    @test evaluate_basis(s, [0.0, 0.5], (1,2)) == 0.5
+    @test evaluate_basis(s, [0.0, 0.5], (1,3)) == 0.5
+    @test evaluate_basis(s, [0.0, 0.5], (1,4)) == 0.0
+
+    @test evaluate_basis(s, [0.0, 1.0], (1,1)) == 0.0
+    @test evaluate_basis(s, [0.0, 1.0], (1,2)) == 0.0
+    @test evaluate_basis(s, [0.0, 1.0], (1,3)) == 0.0
+    @test evaluate_basis(s, [0.0, 1.0], (1,4)) == 1.0
+    
+    @test evaluate_basis(s, [0.5, 0.0], (2,1)) == 0.5
+    @test evaluate_basis(s, [0.5, 0.0], (2,2)) == 0.0
+    @test evaluate_basis(s, [0.5, 0.0], (2,3)) == 0.0
+    @test evaluate_basis(s, [0.5, 0.0], (2,4)) == 0.0
+
+    @test evaluate_basis(s, [0.5, 0.5], (2,1)) == 0.0
+    @test evaluate_basis(s, [0.5, 0.5], (2,2)) == 0.25
+    @test evaluate_basis(s, [0.5, 0.5], (2,3)) == 0.25
+    @test evaluate_basis(s, [0.5, 0.5], (2,4)) == 0.0
+
+    @test evaluate_basis(s, [0.5, 1.0], (2,1)) == 0.0
+    @test evaluate_basis(s, [0.5, 1.0], (2,2)) == 0.0
+    @test evaluate_basis(s, [0.5, 1.0], (2,3)) == 0.0
+    @test evaluate_basis(s, [0.5, 1.0], (2,4)) == 0.5
+
+    @test evaluate_basis(s, [0.5, 0.0], (3,1)) == 0.5
+    @test evaluate_basis(s, [0.5, 0.0], (3,2)) == 0.0
+    @test evaluate_basis(s, [0.5, 0.0], (3,3)) == 0.0
+    @test evaluate_basis(s, [0.5, 0.0], (3,4)) == 0.0
+
+    @test evaluate_basis(s, [0.5, 0.5], (3,1)) == 0.0
+    @test evaluate_basis(s, [0.5, 0.5], (3,2)) == 0.25
+    @test evaluate_basis(s, [0.5, 0.5], (3,3)) == 0.25
+    @test evaluate_basis(s, [0.5, 0.5], (3,4)) == 0.0
+
+    @test evaluate_basis(s, [0.5, 1.0], (3,1)) == 0.0
+    @test evaluate_basis(s, [0.5, 1.0], (3,2)) == 0.0
+    @test evaluate_basis(s, [0.5, 1.0], (3,3)) == 0.0
+    @test evaluate_basis(s, [0.5, 1.0], (3,4)) == 0.5
+
+    @test evaluate_basis(s, [1.0, 0.0], (4,1)) == 1.0
+    @test evaluate_basis(s, [1.0, 0.0], (4,2)) == 0.0
+    @test evaluate_basis(s, [1.0, 0.0], (4,3)) == 0.0
+    @test evaluate_basis(s, [1.0, 0.0], (4,4)) == 0.0
+
+    @test evaluate_basis(s, [1.0, 0.5], (4,1)) == 0.0
+    @test evaluate_basis(s, [1.0, 0.5], (4,2)) == 0.5
+    @test evaluate_basis(s, [1.0, 0.5], (4,3)) == 0.5
+    @test evaluate_basis(s, [1.0, 0.5], (4,4)) == 0.0
+
+    @test evaluate_basis(s, [1.0, 1.0], (4,1)) == 0.0
+    @test evaluate_basis(s, [1.0, 1.0], (4,2)) == 0.0
+    @test evaluate_basis(s, [1.0, 1.0], (4,3)) == 0.0
+    @test evaluate_basis(s, [1.0, 1.0], (4,4)) == 1.0
+
+
     ### B-spline with Dirichlet boundary conditions ###
 
     s = SplineND(d, o, k, :Dirichlet, q)
@@ -213,6 +471,172 @@ end
     @test s(k[end], k[end]) == 0
 
     
+    s = SplineND(2, 2, 0:0.25:1, :Dirichlet, GaussLegendreQuadrature(2))
+
+    @test evaluate_basis(s, [0.00, 0.00], (1,1)) == 0.0
+    @test evaluate_basis(s, [0.00, 0.00], (1,2)) == 0.0
+    @test evaluate_basis(s, [0.00, 0.00], (1,3)) == 0.0
+
+    @test evaluate_basis(s, [0.00, 0.25], (1,1)) == 0.0
+    @test evaluate_basis(s, [0.00, 0.25], (1,2)) == 0.0
+    @test evaluate_basis(s, [0.00, 0.25], (1,3)) == 0.0
+
+    @test evaluate_basis(s, [0.00, 0.50], (1,1)) == 0.0
+    @test evaluate_basis(s, [0.00, 0.50], (1,2)) == 0.0
+    @test evaluate_basis(s, [0.00, 0.50], (1,3)) == 0.0
+
+    @test evaluate_basis(s, [0.00, 0.75], (1,1)) == 0.0
+    @test evaluate_basis(s, [0.00, 0.75], (1,2)) == 0.0
+    @test evaluate_basis(s, [0.00, 0.75], (1,3)) == 0.0
+
+    @test evaluate_basis(s, [0.00, 1.00], (1,1)) == 0.0
+    @test evaluate_basis(s, [0.00, 1.00], (1,2)) == 0.0
+    @test evaluate_basis(s, [0.00, 1.00], (1,3)) == 0.0
+
+    @test evaluate_basis(s, [0.25, 0.00], (1,1)) == 0.0
+    @test evaluate_basis(s, [0.25, 0.00], (1,2)) == 0.0
+    @test evaluate_basis(s, [0.25, 0.00], (1,3)) == 0.0
+
+    @test evaluate_basis(s, [0.25, 0.25], (1,1)) == 1.0
+    @test evaluate_basis(s, [0.25, 0.25], (1,2)) == 0.0
+    @test evaluate_basis(s, [0.25, 0.25], (1,3)) == 0.0
+
+    @test evaluate_basis(s, [0.25, 0.50], (1,1)) == 0.0
+    @test evaluate_basis(s, [0.25, 0.50], (1,2)) == 1.0
+    @test evaluate_basis(s, [0.25, 0.50], (1,3)) == 0.0
+
+    @test evaluate_basis(s, [0.25, 0.75], (1,1)) == 0.0
+    @test evaluate_basis(s, [0.25, 0.75], (1,2)) == 0.0
+    @test evaluate_basis(s, [0.25, 0.75], (1,3)) == 1.0
+
+    @test evaluate_basis(s, [0.25, 1.00], (1,1)) == 0.0
+    @test evaluate_basis(s, [0.25, 1.00], (1,2)) == 0.0
+    @test evaluate_basis(s, [0.25, 1.00], (1,3)) == 0.0
+
+    @test evaluate_basis(s, [0.50, 0.00], (2,1)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.00], (2,2)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.00], (2,3)) == 0.0
+
+    @test evaluate_basis(s, [0.50, 0.25], (2,1)) == 1.0
+    @test evaluate_basis(s, [0.50, 0.25], (2,2)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.25], (2,3)) == 0.0
+
+    @test evaluate_basis(s, [0.50, 0.50], (2,1)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.50], (2,2)) == 1.0
+    @test evaluate_basis(s, [0.50, 0.50], (2,3)) == 0.0
+
+    @test evaluate_basis(s, [0.50, 0.75], (2,1)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.75], (2,2)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.75], (2,3)) == 1.0
+
+    @test evaluate_basis(s, [0.50, 1.00], (2,1)) == 0.0
+    @test evaluate_basis(s, [0.50, 1.00], (2,2)) == 0.0
+    @test evaluate_basis(s, [0.50, 1.00], (2,3)) == 0.0
+
+    @test evaluate_basis(s, [0.75, 0.00], (3,1)) == 0.0
+    @test evaluate_basis(s, [0.75, 0.00], (3,2)) == 0.0
+    @test evaluate_basis(s, [0.75, 0.00], (3,3)) == 0.0
+
+    @test evaluate_basis(s, [0.75, 0.25], (3,1)) == 1.0
+    @test evaluate_basis(s, [0.75, 0.25], (3,2)) == 0.0
+    @test evaluate_basis(s, [0.75, 0.25], (3,3)) == 0.0
+
+    @test evaluate_basis(s, [0.75, 0.50], (3,1)) == 0.0
+    @test evaluate_basis(s, [0.75, 0.50], (3,2)) == 1.0
+    @test evaluate_basis(s, [0.75, 0.50], (3,3)) == 0.0
+
+    @test evaluate_basis(s, [0.75, 0.75], (3,1)) == 0.0
+    @test evaluate_basis(s, [0.75, 0.75], (3,2)) == 0.0
+    @test evaluate_basis(s, [0.75, 0.75], (3,3)) == 1.0
+
+    @test evaluate_basis(s, [0.75, 1.00], (3,1)) == 0.0
+    @test evaluate_basis(s, [0.75, 1.00], (3,2)) == 0.0
+    @test evaluate_basis(s, [0.75, 1.00], (3,3)) == 0.0
+
+    @test evaluate_basis(s, [1.00, 0.00], (3,1)) == 0.0
+    @test evaluate_basis(s, [1.00, 0.00], (3,2)) == 0.0
+    @test evaluate_basis(s, [1.00, 0.00], (3,3)) == 0.0
+
+    @test evaluate_basis(s, [1.00, 0.25], (3,1)) == 0.0
+    @test evaluate_basis(s, [1.00, 0.25], (3,2)) == 0.0
+    @test evaluate_basis(s, [1.00, 0.25], (3,3)) == 0.0
+
+    @test evaluate_basis(s, [1.00, 0.50], (3,1)) == 0.0
+    @test evaluate_basis(s, [1.00, 0.50], (3,2)) == 0.0
+    @test evaluate_basis(s, [1.00, 0.50], (3,3)) == 0.0
+
+    @test evaluate_basis(s, [1.00, 0.75], (3,1)) == 0.0
+    @test evaluate_basis(s, [1.00, 0.75], (3,2)) == 0.0
+    @test evaluate_basis(s, [1.00, 0.75], (3,3)) == 0.0
+
+    @test evaluate_basis(s, [1.00, 1.00], (3,1)) == 0.0
+    @test evaluate_basis(s, [1.00, 1.00], (3,2)) == 0.0
+    @test evaluate_basis(s, [1.00, 1.00], (3,3)) == 0.0
+
+
+    s = SplineND(2, 3, 0:0.25:1, :Dirichlet, GaussLegendreQuadrature(2))
+
+    @test evaluate_basis(s, [0.25, 0.25], (1,1)) == 0.25
+    @test evaluate_basis(s, [0.25, 0.25], (1,2)) == 0.25
+    @test evaluate_basis(s, [0.25, 0.25], (1,3)) == 0.0
+    @test evaluate_basis(s, [0.25, 0.25], (1,4)) == 0.0
+
+    @test evaluate_basis(s, [0.25, 0.50], (1,1)) == 0.0
+    @test evaluate_basis(s, [0.25, 0.50], (1,2)) == 0.25
+    @test evaluate_basis(s, [0.25, 0.50], (1,3)) == 0.25
+    @test evaluate_basis(s, [0.25, 0.50], (1,4)) == 0.0
+
+    @test evaluate_basis(s, [0.25, 0.75], (1,1)) == 0.0
+    @test evaluate_basis(s, [0.25, 0.75], (1,2)) == 0.0
+    @test evaluate_basis(s, [0.25, 0.75], (1,3)) == 0.25
+    @test evaluate_basis(s, [0.25, 0.75], (1,4)) == 0.25
+
+    @test evaluate_basis(s, [0.50, 0.25], (2,1)) == 0.25
+    @test evaluate_basis(s, [0.50, 0.25], (2,2)) == 0.25
+    @test evaluate_basis(s, [0.50, 0.25], (2,3)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.25], (2,4)) == 0.0
+
+    @test evaluate_basis(s, [0.50, 0.50], (2,1)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.50], (2,2)) == 0.25
+    @test evaluate_basis(s, [0.50, 0.50], (2,3)) == 0.25
+    @test evaluate_basis(s, [0.50, 0.50], (2,4)) == 0.0
+
+    @test evaluate_basis(s, [0.50, 0.75], (2,1)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.75], (2,2)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.75], (2,3)) == 0.25
+    @test evaluate_basis(s, [0.50, 0.75], (2,4)) == 0.25
+
+    @test evaluate_basis(s, [0.50, 0.25], (3,1)) == 0.25
+    @test evaluate_basis(s, [0.50, 0.25], (3,2)) == 0.25
+    @test evaluate_basis(s, [0.50, 0.25], (3,3)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.25], (3,4)) == 0.0
+
+    @test evaluate_basis(s, [0.50, 0.50], (3,1)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.50], (3,2)) == 0.25
+    @test evaluate_basis(s, [0.50, 0.50], (3,3)) == 0.25
+    @test evaluate_basis(s, [0.50, 0.50], (3,4)) == 0.0
+
+    @test evaluate_basis(s, [0.50, 0.75], (3,1)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.75], (3,2)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.75], (3,3)) == 0.25
+    @test evaluate_basis(s, [0.50, 0.75], (3,4)) == 0.25
+
+    @test evaluate_basis(s, [0.75, 0.25], (4,1)) == 0.25
+    @test evaluate_basis(s, [0.75, 0.25], (4,2)) == 0.25
+    @test evaluate_basis(s, [0.75, 0.25], (4,3)) == 0.0
+    @test evaluate_basis(s, [0.75, 0.25], (4,4)) == 0.0
+
+    @test evaluate_basis(s, [0.75, 0.50], (4,1)) == 0.0
+    @test evaluate_basis(s, [0.75, 0.50], (4,2)) == 0.25
+    @test evaluate_basis(s, [0.75, 0.50], (4,3)) == 0.25
+    @test evaluate_basis(s, [0.75, 0.50], (4,4)) == 0.0
+
+    @test evaluate_basis(s, [0.75, 0.75], (4,1)) == 0.0
+    @test evaluate_basis(s, [0.75, 0.75], (4,2)) == 0.0
+    @test evaluate_basis(s, [0.75, 0.75], (4,3)) == 0.25
+    @test evaluate_basis(s, [0.75, 0.75], (4,4)) == 0.25
+
+
     ### B-spline with periodic boundary conditions ###
 
     s = SplineND(d, o, k, :Periodic, q)
@@ -230,20 +654,217 @@ end
     @test s(k[begin], k[begin]) ≈ s(k[end], k[end])   atol = 2eps()
 
 
+    s = SplineND(2, 2, 0:0.25:1, :Periodic, GaussLegendreQuadrature(2))
+
+    @test evaluate_basis(s, [0.00, 0.00], (1,1)) == 1.0
+    @test evaluate_basis(s, [0.00, 0.00], (1,2)) == 0.0
+    @test evaluate_basis(s, [0.00, 0.00], (1,3)) == 0.0
+    @test evaluate_basis(s, [0.00, 0.00], (1,4)) == 0.0
+
+    @test evaluate_basis(s, [0.00, 0.25], (1,1)) == 0.0
+    @test evaluate_basis(s, [0.00, 0.25], (1,2)) == 1.0
+    @test evaluate_basis(s, [0.00, 0.25], (1,3)) == 0.0
+    @test evaluate_basis(s, [0.00, 0.25], (1,4)) == 0.0
+
+    @test evaluate_basis(s, [0.00, 0.50], (1,1)) == 0.0
+    @test evaluate_basis(s, [0.00, 0.50], (1,2)) == 0.0
+    @test evaluate_basis(s, [0.00, 0.50], (1,3)) == 1.0
+    @test evaluate_basis(s, [0.00, 0.50], (1,4)) == 0.0
+
+    @test evaluate_basis(s, [0.00, 0.75], (1,1)) == 0.0
+    @test evaluate_basis(s, [0.00, 0.75], (1,2)) == 0.0
+    @test evaluate_basis(s, [0.00, 0.75], (1,3)) == 0.0
+    @test evaluate_basis(s, [0.00, 0.75], (1,4)) == 1.0
+
+    @test evaluate_basis(s, [0.00, 1.00], (1,1)) == 0.0
+    @test evaluate_basis(s, [0.00, 1.00], (1,2)) == 0.0
+    @test evaluate_basis(s, [0.00, 1.00], (1,3)) == 0.0
+    @test evaluate_basis(s, [0.00, 1.00], (1,4)) == 0.0
+
+    @test evaluate_basis(s, [0.25, 0.00], (2,1)) == 1.0
+    @test evaluate_basis(s, [0.25, 0.00], (2,2)) == 0.0
+    @test evaluate_basis(s, [0.25, 0.00], (2,3)) == 0.0
+    @test evaluate_basis(s, [0.25, 0.00], (2,4)) == 0.0
+
+    @test evaluate_basis(s, [0.25, 0.25], (2,1)) == 0.0
+    @test evaluate_basis(s, [0.25, 0.25], (2,2)) == 1.0
+    @test evaluate_basis(s, [0.25, 0.25], (2,3)) == 0.0
+    @test evaluate_basis(s, [0.25, 0.25], (2,4)) == 0.0
+
+    @test evaluate_basis(s, [0.25, 0.50], (2,1)) == 0.0
+    @test evaluate_basis(s, [0.25, 0.50], (2,2)) == 0.0
+    @test evaluate_basis(s, [0.25, 0.50], (2,3)) == 1.0
+    @test evaluate_basis(s, [0.25, 0.50], (2,4)) == 0.0
+
+    @test evaluate_basis(s, [0.25, 0.75], (2,1)) == 0.0
+    @test evaluate_basis(s, [0.25, 0.75], (2,2)) == 0.0
+    @test evaluate_basis(s, [0.25, 0.75], (2,3)) == 0.0
+    @test evaluate_basis(s, [0.25, 0.75], (2,4)) == 1.0
+
+    @test evaluate_basis(s, [0.25, 1.00], (2,1)) == 0.0
+    @test evaluate_basis(s, [0.25, 1.00], (2,2)) == 0.0
+    @test evaluate_basis(s, [0.25, 1.00], (2,3)) == 0.0
+    @test evaluate_basis(s, [0.25, 1.00], (2,4)) == 0.0
+
+    @test evaluate_basis(s, [0.50, 0.00], (3,1)) == 1.0
+    @test evaluate_basis(s, [0.50, 0.00], (3,2)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.00], (3,3)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.00], (3,4)) == 0.0
+
+    @test evaluate_basis(s, [0.50, 0.25], (3,1)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.25], (3,2)) == 1.0
+    @test evaluate_basis(s, [0.50, 0.25], (3,3)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.25], (3,4)) == 0.0
+
+    @test evaluate_basis(s, [0.50, 0.50], (3,1)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.50], (3,2)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.50], (3,3)) == 1.0
+    @test evaluate_basis(s, [0.50, 0.50], (3,4)) == 0.0
+
+    @test evaluate_basis(s, [0.50, 0.75], (3,1)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.75], (3,2)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.75], (3,3)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.75], (3,4)) == 1.0
+
+    @test evaluate_basis(s, [0.50, 1.00], (3,1)) == 0.0
+    @test evaluate_basis(s, [0.50, 1.00], (3,2)) == 0.0
+    @test evaluate_basis(s, [0.50, 1.00], (3,3)) == 0.0
+    @test evaluate_basis(s, [0.50, 1.00], (3,4)) == 0.0
+
+    @test evaluate_basis(s, [0.75, 0.00], (4,1)) == 1.0
+    @test evaluate_basis(s, [0.75, 0.00], (4,2)) == 0.0
+    @test evaluate_basis(s, [0.75, 0.00], (4,3)) == 0.0
+    @test evaluate_basis(s, [0.75, 0.00], (4,4)) == 0.0
+
+    @test evaluate_basis(s, [0.75, 0.25], (4,1)) == 0.0
+    @test evaluate_basis(s, [0.75, 0.25], (4,2)) == 1.0
+    @test evaluate_basis(s, [0.75, 0.25], (4,3)) == 0.0
+    @test evaluate_basis(s, [0.75, 0.25], (4,4)) == 0.0
+
+    @test evaluate_basis(s, [0.75, 0.50], (4,1)) == 0.0
+    @test evaluate_basis(s, [0.75, 0.50], (4,2)) == 0.0
+    @test evaluate_basis(s, [0.75, 0.50], (4,3)) == 1.0
+    @test evaluate_basis(s, [0.75, 0.50], (4,4)) == 0.0
+
+    @test evaluate_basis(s, [0.75, 0.75], (4,1)) == 0.0
+    @test evaluate_basis(s, [0.75, 0.75], (4,2)) == 0.0
+    @test evaluate_basis(s, [0.75, 0.75], (4,3)) == 0.0
+    @test evaluate_basis(s, [0.75, 0.75], (4,4)) == 1.0
+
+    @test evaluate_basis(s, [0.75, 1.00], (4,1)) == 0.0
+    @test evaluate_basis(s, [0.75, 1.00], (4,2)) == 0.0
+    @test evaluate_basis(s, [0.75, 1.00], (4,3)) == 0.0
+    @test evaluate_basis(s, [0.75, 1.00], (4,4)) == 0.0
+
+    @test evaluate_basis(s, [1.00, 0.00], (1,1)) == 0.0
+    @test evaluate_basis(s, [1.00, 0.00], (1,2)) == 0.0
+    @test evaluate_basis(s, [1.00, 0.00], (1,3)) == 0.0
+    @test evaluate_basis(s, [1.00, 0.00], (1,4)) == 0.0
+
+    @test evaluate_basis(s, [1.00, 0.25], (2,1)) == 0.0
+    @test evaluate_basis(s, [1.00, 0.25], (2,2)) == 0.0
+    @test evaluate_basis(s, [1.00, 0.25], (2,3)) == 0.0
+    @test evaluate_basis(s, [1.00, 0.25], (2,4)) == 0.0
+
+    @test evaluate_basis(s, [1.00, 0.50], (3,1)) == 0.0
+    @test evaluate_basis(s, [1.00, 0.50], (3,2)) == 0.0
+    @test evaluate_basis(s, [1.00, 0.50], (3,3)) == 0.0
+    @test evaluate_basis(s, [1.00, 0.50], (3,4)) == 0.0
+
+    @test evaluate_basis(s, [1.00, 0.75], (4,1)) == 0.0
+    @test evaluate_basis(s, [1.00, 0.75], (4,2)) == 0.0
+    @test evaluate_basis(s, [1.00, 0.75], (4,3)) == 0.0
+    @test evaluate_basis(s, [1.00, 0.75], (4,4)) == 0.0
+
+    @test evaluate_basis(s, [1.00, 1.00], (1,1)) == 0.0
+    @test evaluate_basis(s, [1.00, 1.00], (2,2)) == 0.0
+    @test evaluate_basis(s, [1.00, 1.00], (3,3)) == 0.0
+    @test evaluate_basis(s, [1.00, 1.00], (4,4)) == 0.0
+
+
+    s = SplineND(2, 3, 0:0.25:1, :Periodic, GaussLegendreQuadrature(2))
+
+    @test evaluate_basis(s, [0.25, 0.25], (1,1)) == 0.25
+    @test evaluate_basis(s, [0.25, 0.25], (1,2)) == 0.25
+    @test evaluate_basis(s, [0.25, 0.25], (1,3)) == 0.0
+    @test evaluate_basis(s, [0.25, 0.25], (1,4)) == 0.0
+
+    @test evaluate_basis(s, [0.25, 0.50], (1,1)) == 0.0
+    @test evaluate_basis(s, [0.25, 0.50], (1,2)) == 0.25
+    @test evaluate_basis(s, [0.25, 0.50], (1,3)) == 0.25
+    @test evaluate_basis(s, [0.25, 0.50], (1,4)) == 0.0
+
+    @test evaluate_basis(s, [0.25, 0.75], (1,1)) == 0.0
+    @test evaluate_basis(s, [0.25, 0.75], (1,2)) == 0.0
+    @test evaluate_basis(s, [0.25, 0.75], (1,3)) == 0.25
+    @test evaluate_basis(s, [0.25, 0.75], (1,4)) == 0.25
+
+    @test evaluate_basis(s, [0.50, 0.25], (2,1)) == 0.25
+    @test evaluate_basis(s, [0.50, 0.25], (2,2)) == 0.25
+    @test evaluate_basis(s, [0.50, 0.25], (2,3)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.25], (2,4)) == 0.0
+
+    @test evaluate_basis(s, [0.50, 0.50], (2,1)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.50], (2,2)) == 0.25
+    @test evaluate_basis(s, [0.50, 0.50], (2,3)) == 0.25
+    @test evaluate_basis(s, [0.50, 0.50], (2,4)) == 0.0
+
+    @test evaluate_basis(s, [0.50, 0.75], (2,1)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.75], (2,2)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.75], (2,3)) == 0.25
+    @test evaluate_basis(s, [0.50, 0.75], (2,4)) == 0.25
+
+    @test evaluate_basis(s, [0.50, 0.25], (3,1)) == 0.25
+    @test evaluate_basis(s, [0.50, 0.25], (3,2)) == 0.25
+    @test evaluate_basis(s, [0.50, 0.25], (3,3)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.25], (3,4)) == 0.0
+
+    @test evaluate_basis(s, [0.50, 0.50], (3,1)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.50], (3,2)) == 0.25
+    @test evaluate_basis(s, [0.50, 0.50], (3,3)) == 0.25
+    @test evaluate_basis(s, [0.50, 0.50], (3,4)) == 0.0
+
+    @test evaluate_basis(s, [0.50, 0.75], (3,1)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.75], (3,2)) == 0.0
+    @test evaluate_basis(s, [0.50, 0.75], (3,3)) == 0.25
+    @test evaluate_basis(s, [0.50, 0.75], (3,4)) == 0.25
+
+    @test evaluate_basis(s, [0.75, 0.25], (4,1)) == 0.25
+    @test evaluate_basis(s, [0.75, 0.25], (4,2)) == 0.25
+    @test evaluate_basis(s, [0.75, 0.25], (4,3)) == 0.0
+    @test evaluate_basis(s, [0.75, 0.25], (4,4)) == 0.0
+
+    @test evaluate_basis(s, [0.75, 0.50], (4,1)) == 0.0
+    @test evaluate_basis(s, [0.75, 0.50], (4,2)) == 0.25
+    @test evaluate_basis(s, [0.75, 0.50], (4,3)) == 0.25
+    @test evaluate_basis(s, [0.75, 0.50], (4,4)) == 0.0
+
+    @test evaluate_basis(s, [0.75, 0.75], (4,1)) == 0.0
+    @test evaluate_basis(s, [0.75, 0.75], (4,2)) == 0.0
+    @test evaluate_basis(s, [0.75, 0.75], (4,3)) == 0.25
+    @test evaluate_basis(s, [0.75, 0.75], (4,4)) == 0.25
+
+
     ### Check size and knots
 
     for o in 2:8
         b = SplineND(d, o, k, :Natural, q)
         @test size(b) == (length(k) + (o-2), length(k) + (o-2))
         @test unique_knots(b) == k
+        @test indices(b, 1) == (1,1)
+        @test indices(b, size(b)[1] * size(b)[2]) == size(b)
         
         b = SplineND(d, o, k, :Dirichlet, q)
         @test size(b) == (length(k) + (o-4), length(k) + (o-4))
         @test unique_knots(b) == k
+        @test indices(b, 1) == (1,1)
+        @test indices(b, size(b)[1] * size(b)[2]) == size(b)
         
         b = SplineND(d, o, k, :Periodic, q)
         @test size(b) == (length(k)-1, length(k)-1)
         @test unique_knots(b) == k
+        @test indices(b, 1) == (1,1)
+        @test indices(b, size(b)[1] * size(b)[2]) == size(b)
     end
 
 end
